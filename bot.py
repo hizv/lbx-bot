@@ -2,7 +2,6 @@ from discord.ext import commands
 from config import SETTINGS
 import discord
 import letterboxd
-import json
 from film import get_link, get_description, get_search_result
 
 prefix = '/'
