@@ -1,8 +1,10 @@
 from discord.ext import commands
 from config import SETTINGS
-import discord
 import letterboxd
-from film import get_link, get_description, get_search_result
+import logging
+from film import get_film_embed
+
+logging.basicConfig(level=logging.INFO)
 
 prefix = '/'
 bot = commands.Bot(command_prefix=prefix)
@@ -30,23 +32,12 @@ async def ping(ctx):
     await ctx.send(latency)
 
 
-@bot.command(aliases=["f"])
+@bot.command(aliases=['f', '/f'])
 async def film(ctx, *, film_keywords):
-    film = get_search_result(lbx, film_keywords)
-    film_instance = lbx.film(film['id'])
-    film_stats = film_instance.statistics()
-
-# print(json.dumps(film, sort_keys=True, indent=4))
-# print(json.dumps(film_stats, sort_keys=True, indent=4))
-
-    embed = discord.Embed(
-        title=f"{film['name']} ({film['releaseYear']})",
-        url=get_link(film),
-        description=get_description(film, film_stats)
-    )
-
-    if 'poster' in film:
-        embed.set_thumbnail(url=film['poster']['sizes'][-1]['url'])
+    verbosity = ctx.invoked_with.count('/')
+    embed = get_film_embed(lbx, film_keywords, verbosity)
+    if not embed:
+        await ctx.send(f"No film found matching: '{film_keywords}'")
     await ctx.send(embed=embed)
 
 bot.run(SETTINGS['token'])
