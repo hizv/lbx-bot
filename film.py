@@ -1,5 +1,4 @@
 import discord
-import json
 
 
 def get_film_embed(lbx, film_keywords, verbosity=0):
@@ -10,17 +9,27 @@ def get_film_embed(lbx, film_keywords, verbosity=0):
     film_details = film_instance.details()
     film_stats = film_instance.statistics()
 
-    print(json.dumps(film_details, sort_keys=True, indent=4))
-    print(json.dumps(film_stats, sort_keys=True, indent=4))
+    print(film_details)
 
+    title = f"{film_details['name']}"
+    if 'releaseYear' in film_details:
+        title += ' (' + str(film_details['releaseYear']) + ')'
     embed = discord.Embed(
-        title=f"{film_details['name']} ({film_details['releaseYear']})",
+        title=title,
         url=get_link(film_details),
         description=get_description(film_details, film_stats, verbosity),
     )
 
     if 'poster' in film_details:
         embed.set_thumbnail(url=film_details['poster']['sizes'][-1]['url'])
+    if 'runTime' in film_details:
+        runtime = film_details['runTime']
+        hours = runtime // 60
+        minutes = runtime % 60
+        if hours > 0:
+            embed.set_footer(text=f'\n{hours} hour {minutes} min')
+        else:
+            embed.set_footer(text=f'{runtime} min')
     return embed
 
 
@@ -35,13 +44,13 @@ def get_description(film_details, film_stats, verbosity=0):
     if 'originalName' in film_details:
         description += f"_{film_details['originalName']}_\n"
 
-    director_str = '**'
-    for contribution in film_details['contributions']:
-        if contribution['type'] == 'Director':
-            for director in contribution['contributors']:
-                director_str += director['name'] + ', '
-
-    description += director_str[:-2] + '.** '
+    if film_details['contributions']:
+        director_str = '**'
+        for contribution in film_details['contributions']:
+            if contribution['type'] == 'Director':
+                for director in contribution['contributors']:
+                    director_str += director['name'] + ', '
+        description += director_str[:-2] + '** '
 
     country_str = ''
     if 'countries' in film_details:
@@ -59,22 +68,13 @@ def get_description(film_details, film_stats, verbosity=0):
         description += f"{human_count(film_stats['counts']['ratings'])} ratings, "
     else:
         description += '\n'
-    description += f"{human_count(film_stats['counts']['watches'])} watched"
+    description += f"{human_count(film_stats['counts']['watches'])} watched\n"
 
-    if 'runTime' in film_details:
-        runtime = film_details['runTime']
-        hours = runtime // 60
-        minutes = runtime % 60
-        if hours > 0:
-            description += f'\n**{hours} h {minutes} min.** '
-        else:
-            description += f'**{runtime} min.** '
-
-    if 'genres' in film_details:
-        genre_str = ''
+    if film_details['genres']:
+        genre_str = '*'
         for genre in film_details['genres']:
             genre_str += genre['name'] + ', '
-        description += genre_str[:-2]
+        description += genre_str[:-2] + '*'
     if verbosity > 0:
         description += '\n```' + film_details['description'] + '```\n'
 
@@ -90,7 +90,6 @@ def get_search_result(lbx, film_keywords):
 
     search_response = lbx.search(search_request=search_request)
 
-    # print(json.dumps(search_response, sort_keys=True, indent=4))
     if not search_response['items']:
         return None
     return search_response['items'][0]['film']
