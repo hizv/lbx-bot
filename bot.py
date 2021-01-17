@@ -22,7 +22,7 @@ lbx = letterboxd.new(
 )
 
 
-class Bot(commands.Bot):
+class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bg_task = self.loop.create_task(self.check_feed())
@@ -40,7 +40,7 @@ class Bot(commands.Bot):
                             entries = feedparser.parse(rss_url)['entries'][:5]
                             for entry in entries:
                                 entry_time = datetime.fromtimestamp(mktime(entry['published_parsed']))
-                                print(entry['title'], prev_time, entry_time)
+                                #print(entry['title'], prev_time, entry_time)
                                 if entry_time > prev_time:
                                     embed = discord.Embed(
                                         title=entry['title'],

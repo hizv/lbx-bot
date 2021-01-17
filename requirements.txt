@@ -1,4 +1,5 @@
 discord.py==1.5.1
 letterboxd==0.3.0
+feedparser==5.2.1
+aiosqlite==0.16.0
 discord==1.0.1
-tests==0.007
