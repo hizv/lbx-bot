@@ -10,7 +10,11 @@ from datetime import datetime
 from time import mktime
 import asyncio
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(filename='log.txt',
+                    filemode='a',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.INFO)
 
 GUILDS = {'Korean Fried Chicken': 'kfc', '/daiIy/': 'daily'}
 CHANNELS = {'kfc': 729555600119169045,
@@ -33,15 +37,15 @@ class Bot(commands.AutoShardedBot):
         while not self.is_closed():
             for guild in GUILDS.values():
                 channel = self.get_channel(CHANNELS[guild])
-                print(guild, channel)
+                logging.info(f'GUILD, CHANNEL: {guild} {channel}')
                 async with aiosqlite.connect('lbx.db') as db:
                     async with db.execute(f'SELECT * FROM {guild}') as cursor:
                         async for row in cursor:
                             rss_url = f'https://letterboxd.com/{row[1]}/rss'
                             entries = feedparser.parse(rss_url)['entries'][:5]
                             for entry in entries:
-                                entry_time = datetime.fromtimestamp(mktime(entry['published_parsed']))
-                                print(entry['title'], prev_time, entry_time)
+                                entry_time = await datetime.fromtimestamp(mktime(entry['published_parsed']))
+                                logging.info(f"{entry['title']} {entry_time} {prev_time}")
                                 if entry_time > prev_time:
                                     embed = discord.Embed(
                                         title=entry['title'],
@@ -75,7 +79,6 @@ async def on_message(message):
 
 @bot.command(aliases=['f', '/f'])
 async def film(ctx, *, film_keywords):
-    print(f'CHANNEL: {ctx.channel.id}')
     verbosity = ctx.invoked_with.count('/')
     embed = get_film_embed(lbx, film_keywords, verbosity)
     if not embed:

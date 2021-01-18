@@ -9,8 +9,6 @@ def get_film_embed(lbx, film_keywords, verbosity=0):
     film_details = film_instance.details()
     film_stats = film_instance.statistics()
 
-    print(film_details)
-
     title = f"{film_details['name']}"
     if 'releaseYear' in film_details:
         title += ' (' + str(film_details['releaseYear']) + ')'
