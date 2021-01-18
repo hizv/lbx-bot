@@ -13,8 +13,8 @@ import asyncio
 logging.basicConfig(level=logging.INFO)
 
 GUILDS = {'Korean Fried Chicken': 'kfc', '/daiIy/': 'daily'}
-CHANNELS = {'kfc': '729555600119169045',
-            'daily': '534812902658539520'}
+CHANNELS = {'kfc': 729555600119169045,
+            'daily': 534812902658539520}
 prefix = '/'
 lbx = letterboxd.new(
     api_key=SETTINGS['letterboxd']['api_key'],
@@ -33,6 +33,7 @@ class Bot(commands.AutoShardedBot):
         while not self.is_closed():
             for guild in GUILDS.values():
                 channel = self.get_channel(CHANNELS[guild])
+                print(guild, channel)
                 async with aiosqlite.connect('lbx.db') as db:
                     async with db.execute(f'SELECT * FROM {guild}') as cursor:
                         async for row in cursor:
@@ -40,7 +41,7 @@ class Bot(commands.AutoShardedBot):
                             entries = feedparser.parse(rss_url)['entries'][:5]
                             for entry in entries:
                                 entry_time = datetime.fromtimestamp(mktime(entry['published_parsed']))
-                                #print(entry['title'], prev_time, entry_time)
+                                print(entry['title'], prev_time, entry_time)
                                 if entry_time > prev_time:
                                     embed = discord.Embed(
                                         title=entry['title'],
@@ -55,7 +56,7 @@ class Bot(commands.AutoShardedBot):
                                         )
                                     await channel.send(embed=embed)
             prev_time = datetime.utcnow()
-            await asyncio.sleep(300)
+            await asyncio.sleep(150)
 
 
 bot = Bot(command_prefix=prefix)
@@ -92,13 +93,22 @@ async def follow(ctx, lb_id):
 
 
 @bot.command()
-async def unfollow(ctx):
+async def unfollow(ctx, lb_id):
     async with aiosqlite.connect('lbx.db') as db:
         await db.execute(f'''DELETE FROM {GUILDS[ctx.guild.name]}
                                 WHERE uid='{ctx.author.id}''')
         await db.commit()
-    await ctx.send(f"Added {lb_id}.")
+    await ctx.send(f"Removed {lb_id}.")
 
 
+@bot.command()
+@commands.has_guild_permissions(manage_channels=True)
+async def setchannel(ctx, channel: discord.TextChannel):
+    CHANNELS[GUILDS[ctx.guild.name]] = channel.id
+    await ctx.send(f'Now following updates in {channel.mention}')
 
+@setchannel.error
+async def setchannel_error(ctx, error):
+    if isinstance(error, commands.errors.MissingPermissions):
+        await ctx.send('Not...for you.')
 bot.run(SETTINGS['token'])
