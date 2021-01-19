@@ -61,7 +61,7 @@ class MyHelp(commands.MinimalHelpCommand):
         embed.add_field(name="Help", value=command.help)
         alias = command.aliases
         if alias:
-            embed.add_field(name="Aliases", value=", ".join(alias), inline=False)
+            embed.add_field(name="Aliases", value=prefix + f", {prefix}".join(alias), inline=False)
 
         channel = self.get_destination()
         await channel.send(embed=embed)
