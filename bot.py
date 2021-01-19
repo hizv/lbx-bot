@@ -44,7 +44,7 @@ class Bot(commands.AutoShardedBot):
                             rss_url = f'https://letterboxd.com/{row[1]}/rss'
                             entries = feedparser.parse(rss_url)['entries'][:5]
                             for entry in entries:
-                                entry_time = await datetime.fromtimestamp(mktime(entry['published_parsed']))
+                                entry_time = datetime.fromtimestamp(mktime(entry['published_parsed']))
                                 logging.info(f"{entry['title']} {entry_time} {prev_time}")
                                 if entry_time > prev_time:
                                     embed = discord.Embed(
@@ -83,7 +83,8 @@ async def film(ctx, *, film_keywords):
     embed = get_film_embed(lbx, film_keywords, verbosity)
     if not embed:
         await ctx.send(f"No film found matching: '{film_keywords}'")
-    await ctx.send(embed=embed)
+    else:
+        await ctx.send(embed=embed)
 
 
 @bot.command()
