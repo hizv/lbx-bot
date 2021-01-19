@@ -2,7 +2,6 @@ from discord.ext import commands
 import discord
 from config import SETTINGS
 import letterboxd
-import logging
 from film import get_film_embed
 import feedparser
 import aiosqlite
@@ -10,11 +9,6 @@ from datetime import datetime
 from time import mktime
 import asyncio
 
-logging.basicConfig(filename='log.txt',
-                    filemode='a',
-                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                    datefmt='%H:%M:%S',
-                    level=logging.INFO)
 
 GUILDS = {'Korean Fried Chicken': 'kfc', '/daiIy/': 'daily'}
 CHANNELS = {'Korean Fried Chicken': 729555600119169045,
@@ -35,9 +29,8 @@ class Bot(commands.AutoShardedBot):
         prev_time = datetime.utcnow()
         await self.wait_until_ready()
         while not self.is_closed():
-            for guild, guild_id in GUILDS:
+            for guild, guild_id in GUILDS.items():
                 channel = self.get_channel(CHANNELS[guild])
-                logging.info(f'GUILD, CHANNEL: {guild_id} {channel}')
                 async with aiosqlite.connect('lbx.db') as db:
                     async with db.execute(f'SELECT * FROM {guild_id}') as cursor:
                         async for row in cursor:
@@ -45,7 +38,6 @@ class Bot(commands.AutoShardedBot):
                             entries = feedparser.parse(rss_url)['entries'][:5]
                             for entry in entries:
                                 entry_time = datetime.fromtimestamp(mktime(entry['published_parsed']))
-                                logging.info(f"{entry['title']} {entry_time} {prev_time}")
                                 if entry_time > prev_time:
                                     embed = discord.Embed(
                                         title=entry['title'],
