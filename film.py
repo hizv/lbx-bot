@@ -1,11 +1,14 @@
 import discord
 
 
-def get_film_embed(lbx, film_keywords, verbosity=0):
-    film = get_search_result(lbx, film_keywords)
-    if not film:
-        return None
-    film_instance = lbx.film(film['id'])
+def get_film_embed(lbx, film_keywords='', verbosity=0, film_id=''):
+    if len(film_keywords):
+        film = get_search_result(lbx, film_keywords)
+        if not film:
+            return None
+        film_instance = lbx.film(film['id'])
+    if len(film_id):
+        film_instance = lbx.film(film_id)
     film_details = film_instance.details()
     film_stats = film_instance.statistics()
 

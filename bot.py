@@ -136,6 +136,35 @@ async def following(ctx):
     await ctx.send(embed=embed)
 
 
+@bot.command(help='Get a random film from last 100 items watchlisted')
+async def wrand(ctx, *, lb_id):
+    quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 101 else 100
+    if not len(lb_id) or lb_id.isdigit():
+        query = f'''SELECT lb_id FROM {GUILDS[ctx.guild.name]}
+                WHERE username = '{ctx.author.name}'
+            '''
+        async with aiosqlite.connect('lbx.db') as db:
+            async with db.execute(query) as cursor:
+                lb_id = (await cursor.fetchone())[0]
+    m_result = lbx.search(search_request={
+        'include': 'MemberSearchItem', 'input': lb_id, 'perPage': 1})
+    if not m_result:
+        await ctx.send('User not found.')
+        return
+    member = lbx.member(member_id=m_result['items'][0]['member']['id'])
+
+    watchlist_request = {
+        'perPage': quantity,
+        'memberRelationship': 'InWatchlist',
+    }
+    watchlist = member.watchlist(watchlist_request=watchlist_request)
+    if not watchlist['items']:
+        await ctx.send('Private or empty watchlist. Or try using /wrand (number of items in your watchlist)')
+        return
+    random_film = watchlist['items'][random.randrange(0, quantity)]
+
+    await ctx.send(embed=get_film_embed(lbx, film_id=random_film['id']))
+
 @setchannel.error
 async def setchannel_error(ctx, error):
     if isinstance(error, commands.errors.MissingPermissions):
