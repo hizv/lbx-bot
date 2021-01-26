@@ -8,7 +8,11 @@ import aiosqlite
 from datetime import datetime
 from time import mktime
 import asyncio
-
+import random
+import json
+from crew import get_crew_embed
+from imdbpie import Imdb
+from imdb import IMDb
 
 GUILDS = {'Korean Fried Chicken': 'kfc', '/daiIy/': 'daily'}
 CHANNELS = {'Korean Fried Chicken': 729555600119169045,
@@ -19,11 +23,14 @@ lbx = letterboxd.new(
     api_secret=SETTINGS['letterboxd']['api_secret']
 )
 
+imdb = Imdb()
+ia = IMDb()
+
 
 class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bg_task = self.loop.create_task(self.check_feed())
+        # self.bg_task = self.loop.create_task(self.check_feed())
 
     async def check_feed(self):
         prev_time = datetime.utcnow()
@@ -137,7 +144,7 @@ async def following(ctx):
 
 
 @bot.command(help='Get a random film from last 100 items watchlisted')
-async def wrand(ctx, *, lb_id):
+async def wrand(ctx, *, lb_id=''):
     quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 101 else 100
     if not len(lb_id) or lb_id.isdigit():
         query = f'''SELECT lb_id FROM {GUILDS[ctx.guild.name]}
@@ -164,6 +171,26 @@ async def wrand(ctx, *, lb_id):
     random_film = watchlist['items'][random.randrange(0, quantity)]
 
     await ctx.send(embed=get_film_embed(lbx, film_id=random_film['id']))
+
+
+@bot.command(help='Get info about a crew member',
+             aliases=['c', '/c'])
+async def crew(ctx, *, crew_keywords):
+    verbosity = ctx.invoked_with.count('/')
+
+    search_request = {
+        'perPage': 1,
+        'input': crew_keywords,
+        'include': 'ContributorSearchItem'
+    }
+
+    res = lbx.search(search_request=search_request)
+    print(json.dumps(res['items'][0], indent=4, sort_keys=True))
+    res = res['items'][0]['contributor']
+    if res:
+        await ctx.send(embed=get_crew_embed(imdb, ia, res, verbosity))
+    else:
+        await ctx.send(f"No one matching '{crew_keywords}'")
 
 @setchannel.error
 async def setchannel_error(ctx, error):
