@@ -1,5 +1,9 @@
-discord.py==1.5.1
-letterboxd==0.3.0
 feedparser==5.2.1
-aiosqlite==0.16.0
+letterboxd==0.3.0
+feedparser_data==0.1.0
+discord.py==1.5.1
+wikipedia==1.4.0
+imdbpie==5.6.4
+aiosqlite==0.16.1
 discord==1.0.1
+IMDbPY==2020.9.25
