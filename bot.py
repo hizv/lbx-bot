@@ -2,31 +2,41 @@ from discord.ext import commands
 import discord
 from config import SETTINGS
 import letterboxd
-from film import get_film_embed
-from feedparser_data import RssAsync
+from film import get_film_embed, get_link
 import aiosqlite
 from datetime import datetime
 from time import mktime
 import asyncio
 import random
-import json
 from crew import get_crew_embed
 from imdbpie import Imdb
 from imdb import IMDb
+import json
+from bs4 import BeautifulSoup
+from aiohttp import ClientSession
+from diary import get_diary_embed, get_lid
+from lists import get_list_id
 
-GUILDS = {'Korean Fried Chicken': 'kfc', '/daiIy/': 'daily'}
-CHANNELS = {'Korean Fried Chicken': 729555600119169045,
-            '/daiIy/': 534812902658539520}
-prefix = '/'
+GUILDS, CHANNELS = SETTINGS['guilds'], SETTINGS['channels']
+prefix = SETTINGS['prefix']
 lbx = letterboxd.new(
     api_key=SETTINGS['letterboxd']['api_key'],
     api_secret=SETTINGS['letterboxd']['api_secret']
 )
 
+api = letterboxd.api.API(
+    api_base='https://api.letterboxd.com/api/v0',
+    api_key=SETTINGS['letterboxd']['api_key'],
+    api_secret=SETTINGS['letterboxd']['api_secret']
+)
+
+query = f'''SELECT lb_id FROM {GUILDS[ctx.guild.name]}
+                WHERE username = '{ctx.author.name}'
+            '''
 imdb = Imdb()
 ia = IMDb()
 aiorss = RssAsync()
-
+TRACKING_ACTIVITIES = ['DiaryEntryActivity']
 
 class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
@@ -34,35 +44,39 @@ class Bot(commands.AutoShardedBot):
         self.bg_task = self.loop.create_task(self.check_feed())
 
     async def check_feed(self):
-        prev_time = datetime.utcnow()
         await self.wait_until_ready()
         while not self.is_closed():
+            prev_time = datetime.utcnow()
+            await asyncio.sleep(1200)
             for guild, guild_id in GUILDS.items():
                 channel = self.get_channel(CHANNELS[guild])
                 async with aiosqlite.connect('lbx.db') as db:
                     async with db.execute(f'SELECT * FROM {guild_id}') as cursor:
                         async for row in cursor:
-                            rss_url = f'https://letterboxd.com/{row[1]}/rss'
-                            rss_data = await aiorss.get_data(url_to_parse=rss_url,
-                                                              bypass_bozo=True)
-                            entries = rss_data.entries[:3]
+                            print(row)
+                            ratings_request = {
+                                'perPage': 100,
+                                'include': TRACKING_ACTIVITIES,
+                                'where': ['OwnActivity', 'NotIncomingActivity']
+                            }
+                            res = api.api_call(
+                                path=f'member/{row[4]}/activity',
+                                params=ratings_request)
+                            activity = res.json()
+                            entries = extend([], activity['items'], 4)
+                            dids = []
                             for entry in entries:
-                                entry_time = datetime.fromtimestamp(mktime(entry['published_parsed']))
+                                entry_time = datetime.strptime(entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
                                 if entry_time > prev_time:
-                                    embed = discord.Embed(
-                                        title=entry['title'],
-                                        url=entry['link'],
-                                        description='```' + entry['summary'].split('<p>')[-1].split('</p>')[0] + '```'
-                                    )
-                                    embed.set_thumbnail(url=entry['summary'].split('''"''')[1])
-                                    embed.set_author(
-                                        name=row[2],
-                                        url=f'https://letterboxd.com/{row[1]}',
-                                        icon_url=row[3]
-                                        )
-                                    await channel.send(embed=embed)
-            prev_time = datetime.utcnow()
-            await asyncio.sleep(150)
+                                    dids.append(entry['diaryEntry']['id'])
+                            if dids:
+                                d_embed = await get_diary_embed(api, dids)
+                                d_embed.set_author(
+                                    name=row[2],
+                                    url=f'https://letterboxd.com/{row[1]}',
+                                    icon_url=row[3]
+                                )
+                                await channel.send(embed=d_embed)
 
 
 class MyHelp(commands.MinimalHelpCommand):
@@ -108,10 +122,11 @@ async def follow(ctx, lb_id, member: discord.Member = None):
     member = member or ctx.author
     try:
         async with aiosqlite.connect('lbx.db') as db:
+            lid = await get_lid(lbx, lb_id)
             await db.execute(f'''INSERT INTO {GUILDS[ctx.guild.name]}
-                                VALUES ('{member.id}', '{lb_id}', '{member.name}','{member.avatar_url}')''')
+                                VALUES ('{member.id}', '{lb_id}', '{member.name}','{member.avatar_url}', '{lid}')''')
             await db.commit()
-        await ctx.send(f"Added {lb_id}.")
+        await ctx.send(f"Added [{lb_id}](https://boxd.it/{lid}).")
     except Exception:
         await ctx.send(f'User already exists')
 
@@ -138,7 +153,7 @@ async def following(ctx):
     async with aiosqlite.connect('lbx.db') as db:
         async with db.execute(f'SELECT lb_id, username FROM {GUILDS[ctx.guild.name]}') as cursor:
             async for row in cursor:
-                follow_str += f'[{row[1]}](https://letterboxd.com/{row[0]}), '
+                follow_str += f'[{row[1]}](https://boxd.it/{row[0]}), '
 
     embed = discord.Embed(
         description=f'Following these users in {bot.get_channel(CHANNELS[ctx.guild.name]).mention}\n' + follow_str[:-2]
@@ -150,18 +165,10 @@ async def following(ctx):
 async def wrand(ctx, *, lb_id=''):
     quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 101 else 100
     if not len(lb_id) or lb_id.isdigit():
-        query = f'''SELECT lb_id FROM {GUILDS[ctx.guild.name]}
-                WHERE username = '{ctx.author.name}'
-            '''
         async with aiosqlite.connect('lbx.db') as db:
             async with db.execute(query) as cursor:
                 lb_id = (await cursor.fetchone())[0]
-    m_result = lbx.search(search_request={
-        'include': 'MemberSearchItem', 'input': lb_id, 'perPage': 1})
-    if not m_result:
-        await ctx.send('User not found.')
-        return
-    member = lbx.member(member_id=m_result['items'][0]['member']['id'])
+    member = lbx.member(member_id=lb_id)
 
     watchlist_request = {
         'perPage': quantity,
@@ -188,16 +195,44 @@ async def crew(ctx, *, crew_keywords):
     }
 
     res = lbx.search(search_request=search_request)
-    print(json.dumps(res['items'][0], indent=4, sort_keys=True))
     res = res['items'][0]['contributor']
     if res:
         await ctx.send(embed=get_crew_embed(imdb, ia, res, verbosity))
     else:
-        await ctx.send(f"No one matching '{crew_keywords}'")
+        await ctx.send(f"No one matches '{crew_keywords}'")
+
+
+@bot.command()
+async def lrand(ctx, lb_id, *, keywords):
+    lid = await get_lid(lbx, lb_id)
+    list_id = await get_list_id(api, lid, keywords)
+    if not list_id:
+        await ctx.send(f"No matching list for '{keywords}'")
+        return
+    res = api.api_call(f'list/{list_id}/entries', params={'perPage': 100})
+    L = res.json()
+    size_L = len(L['items'])
+    random_film = L['items'][random.randrange(0, size_L)]['film']
+    print(json.dumps(random_film, indent=4, sort_keys=True))
+    embed=get_film_embed(lbx, film_id=random_film['id'])
+    embed.set_author(name=lb_id, url=f'https://boxd.it/{list_id}')
+    await ctx.send(embed=embed)
+
 
 @setchannel.error
 async def setchannel_error(ctx, error):
     if isinstance(error, commands.errors.MissingPermissions):
         await ctx.send('Not...for you.')
+
+def extend(entries, items, limit):
+    count = 0
+    for act in items:
+        if count == limit:
+            break
+        if act['type'] in TRACKING_ACTIVITIES:
+            entries.append(act)
+            count += 1
+
+    return entries
 
 bot.run(SETTINGS['token'])

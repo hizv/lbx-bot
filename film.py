@@ -1,4 +1,5 @@
-import discord
+import json
+from discord import Embed
 
 
 def get_film_embed(lbx, film_keywords='', verbosity=0, film_id=''):
@@ -15,7 +16,7 @@ def get_film_embed(lbx, film_keywords='', verbosity=0, film_id=''):
     title = f"{film_details['name']}"
     if 'releaseYear' in film_details:
         title += ' (' + str(film_details['releaseYear']) + ')'
-    embed = discord.Embed(
+    embed = Embed(
         title=title,
         url=get_link(film_details),
         description=get_description(film_details, film_stats, verbosity),
