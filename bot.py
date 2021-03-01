@@ -1,21 +1,19 @@
+import asyncio
+from datetime import datetime
+import random
 from discord.ext import commands
 import discord
-from config import SETTINGS
 import letterboxd
-from film import get_film_embed, get_link
 import aiosqlite
-from datetime import datetime
-from time import mktime
-import asyncio
-import random
-from crew import get_crew_embed
 from imdbpie import Imdb
 from imdb import IMDb
-import json
 from bs4 import BeautifulSoup
 from aiohttp import ClientSession
-from diary import get_diary_embed, get_lid
 from lists import get_list_id
+from config import SETTINGS
+from crew import get_crew_embed
+from diary import get_diary_embed, get_lid
+from film import get_film_embed
 
 GUILDS, CHANNELS = SETTINGS['guilds'], SETTINGS['channels']
 prefix = SETTINGS['prefix']
@@ -30,12 +28,9 @@ api = letterboxd.api.API(
     api_secret=SETTINGS['letterboxd']['api_secret']
 )
 
-query = f'''SELECT lb_id FROM {GUILDS[ctx.guild.name]}
-                WHERE username = '{ctx.author.name}'
-            '''
+
 imdb = Imdb()
 ia = IMDb()
-aiorss = RssAsync()
 TRACKING_ACTIVITIES = ['DiaryEntryActivity']
 
 class Bot(commands.AutoShardedBot):
@@ -47,7 +42,6 @@ class Bot(commands.AutoShardedBot):
         await self.wait_until_ready()
         while not self.is_closed():
             prev_time = datetime.utcnow()
-            await asyncio.sleep(1200)
             for guild, guild_id in GUILDS.items():
                 channel = self.get_channel(CHANNELS[guild])
                 async with aiosqlite.connect('lbx.db') as db:
@@ -77,6 +71,7 @@ class Bot(commands.AutoShardedBot):
                                     icon_url=row[3]
                                 )
                                 await channel.send(embed=d_embed)
+                            await asyncio.sleep(30)
 
 
 class MyHelp(commands.MinimalHelpCommand):
@@ -128,7 +123,7 @@ async def follow(ctx, lb_id, member: discord.Member = None):
             await db.commit()
         await ctx.send(f"Added [{lb_id}](https://boxd.it/{lid}).")
     except Exception:
-        await ctx.send(f'User already exists')
+        await ctx.send('User already exists')
 
 
 @bot.command(help='unfollow user diary')
@@ -164,8 +159,11 @@ async def following(ctx):
 @bot.command(help='Get a random film from last 100 items watchlisted')
 async def wrand(ctx, *, lb_id=''):
     quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 101 else 100
-    if not len(lb_id) or lb_id.isdigit():
+    if not lb_id or lb_id.isdigit():
         async with aiosqlite.connect('lbx.db') as db:
+            query = f'''SELECT lb_id FROM {GUILDS[ctx.guild.name]}
+                WHERE username = '{ctx.author.name}'
+            '''
             async with db.execute(query) as cursor:
                 lb_id = (await cursor.fetchone())[0]
     member = lbx.member(member_id=lb_id)
@@ -213,7 +211,6 @@ async def lrand(ctx, lb_id, *, keywords):
     L = res.json()
     size_L = len(L['items'])
     random_film = L['items'][random.randrange(0, size_L)]['film']
-    print(json.dumps(random_film, indent=4, sort_keys=True))
     embed=get_film_embed(lbx, film_id=random_film['id'])
     embed.set_author(name=lb_id, url=f'https://boxd.it/{list_id}')
     await ctx.send(embed=embed)

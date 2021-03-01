@@ -1,6 +1,6 @@
 import discord
-from film import get_link
 from markdownify import markdownify
+from film import get_link
 
 async def get_diary_embed(api, dids):
     description = ''

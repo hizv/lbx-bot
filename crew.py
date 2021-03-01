@@ -40,3 +40,4 @@ def get_link(res):
     for link in res['links']:
         if link['type'] == 'letterboxd':
             return link['url']
+    return None
