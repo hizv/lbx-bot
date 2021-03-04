@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 import random
 import subprocess
-from discord.ext import commands
+from discord.ext import commands, menus
 import discord
 import letterboxd
 import aiosqlite
@@ -12,7 +12,7 @@ from lists import get_list_id
 from config import SETTINGS, CONN_URL
 from crew import get_crew_embed
 from diary import get_diary_embed, get_lid
-from film import get_film_embed, who_knows_embed, top_films_embed
+from film import get_film_embed, who_knows_embed, top_films_list
 import pymongo
 
 GUILDS, CHANNELS = SETTINGS['guilds'], SETTINGS['channels']
@@ -88,6 +88,16 @@ class MyHelp(commands.MinimalHelpCommand):
 bot = Bot(command_prefix=prefix,
           help_command=MyHelp())
 
+class MySource(menus.ListPageSource):
+    def __init__(self, data):
+        super().__init__(data, per_page=20)
+
+    async def format_page(self, menu, entries):
+        offset = menu.current_page * self.per_page
+        description = '\n'.join(f'{i+1}. {v}' for i, v in enumerate(entries, start=offset))
+        return discord.Embed(
+            description=description
+        )
 
 @bot.event
 async def on_ready():
@@ -105,7 +115,15 @@ async def on_message(message):
              aliases=['f', '/f'])
 async def film(ctx, *, film_keywords):
     verbosity = ctx.invoked_with.count('/')
-    embed = get_film_embed(lbx, film_keywords, verbosity)
+    guild_name = ctx.guild.name
+    db = None
+    if guild_name in GUILDS:
+        print('Hi')
+        db_name = GUILDS[guild_name]
+        conn_url = CONN_URL[db_name]
+        client = pymongo.MongoClient(conn_url)
+        db = client[db_name]
+    embed = get_film_embed(lbx, film_keywords, verbosity, db=db)
     if not embed:
         await ctx.send(f"No film found matching: '{film_keywords}'")
     else:
@@ -304,8 +322,8 @@ async def top_films(ctx, threshold):
     conn_url = CONN_URL[db_name]
     client = pymongo.MongoClient(conn_url)
     db = client[db_name]
-
-    await ctx.send(embed=top_films_embed(db, threshold))
+    pages = menus.MenuPages(source=MySource(top_films_list(db, threshold)), clear_reactions_after=True)
+    await pages.start(ctx)
 
 @setchannel.error
 async def setchannel_error(ctx, error):
