@@ -1,6 +1,5 @@
 from discord import Embed
 
-
 def get_film_embed(lbx, film_keywords='', verbosity=0, film_id=''):
     if film_keywords:
         film = get_search_result(lbx, film_keywords)
@@ -96,6 +95,64 @@ def get_search_result(lbx, film_keywords):
         return None
     return search_response['items'][0]['film']
 
+
+def who_knows_embed(lbx, db, film_keywords):
+    ratings = db.ratings
+    users = db.users
+    description = ''
+
+    film_result = get_search_result(lbx, film_keywords)
+    if not film_result:
+        return None
+
+    link = get_link(film_result)
+    movie_id = link.split('/')[-2]
+
+    for rating in ratings.find({'movie_id': movie_id}):
+        lb_id = rating['lb_id']
+        rating_id = rating['rating_id']
+        if rating_id == -1:
+            rating_id = '✓'
+        #user = users.find_one({'lb_id': lb_id})
+        description += f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n"
+
+    title = f"Who knows {film_result['name']}"
+    if 'releaseYear' in film_result:
+        title += ' (' + str(film_result['releaseYear']) + ')'
+
+    embed = Embed(
+        title=title,
+        url=link,
+        description=description
+    )
+
+    if 'poster' in film_result:
+        embed.set_thumbnail(url=film_result['poster']['sizes'][-1]['url'])
+
+    return embed
+
+def top_films_embed(db, threshold):
+    top_films = db.films.find(
+        { 'rating_count': {'$gt': threshold}
+    }).sort('guild_avg', -1)
+    # .aggregate(
+    #     [
+    #        { '$sort': {'guild_avg': -1 } }
+    #     ]
+    # )
+    description = ''
+    count = 1
+    for film in top_films[:25]:
+        movie_id = film['movie_id']
+        description += f"{count}. [{movie_id}](https://letterboxd.com/film/{movie_id}): **{film['guild_avg']:.2f}** ({film['rating_count']})\n"
+        count += 1
+
+    embed = Embed(
+        title=f'Highest rated films with minimum {threshold} ratings',
+        description=description
+    )
+
+    return embed
 
 def human_count(n):
     m = n / 1000

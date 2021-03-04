@@ -14,8 +14,8 @@ async def get_diary_embed(api, dids):
             description += f"**{d_entry['diaryDetails']['diaryDate']}** "
         if 'rating' in d_entry:
             description += ' ' + int(d_entry['rating']) * '★'
-            if str(d_entry['rating'])[-1] == 5:
-                description += '⯪ '
+            if str(d_entry['rating'])[-1] == '5':
+                description += '½ '
         if d_entry['like']:
             description += ' <3'
         if d_entry['diaryDetails']['rewatch']:

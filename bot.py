@@ -1,19 +1,19 @@
 import asyncio
 from datetime import datetime
 import random
+import subprocess
 from discord.ext import commands
 import discord
 import letterboxd
 import aiosqlite
 from imdbpie import Imdb
 from imdb import IMDb
-from bs4 import BeautifulSoup
-from aiohttp import ClientSession
 from lists import get_list_id
-from config import SETTINGS
+from config import SETTINGS, CONN_URL
 from crew import get_crew_embed
 from diary import get_diary_embed, get_lid
-from film import get_film_embed
+from film import get_film_embed, who_knows_embed, top_films_embed
+import pymongo
 
 GUILDS, CHANNELS = SETTINGS['guilds'], SETTINGS['channels']
 prefix = SETTINGS['prefix']
@@ -36,12 +36,13 @@ TRACKING_ACTIVITIES = ['DiaryEntryActivity']
 class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bg_task = self.loop.create_task(self.check_feed())
+        #self.bg_task = self.loop.create_task(self.check_feed())
 
     async def check_feed(self):
         await self.wait_until_ready()
         while not self.is_closed():
             prev_time = datetime.utcnow()
+            await asyncio.sleep(1500)
             for guild, guild_id in GUILDS.items():
                 channel = self.get_channel(CHANNELS[guild])
                 async with aiosqlite.connect('lbx.db') as db:
@@ -71,7 +72,6 @@ class Bot(commands.AutoShardedBot):
                                     icon_url=row[3]
                                 )
                                 await channel.send(embed=d_embed)
-                            await asyncio.sleep(30)
 
 
 class MyHelp(commands.MinimalHelpCommand):
@@ -114,6 +114,12 @@ async def film(ctx, *, film_keywords):
 
 @bot.command(help='follow user diary')
 async def follow(ctx, lb_id, member: discord.Member = None):
+    db_name = GUILDS[ctx.guild.name]
+    conn_url = CONN_URL[db_name]
+    client = pymongo.MongoClient(conn_url)
+    db = client[db_name]
+    users = db.users
+
     member = member or ctx.author
     try:
         async with aiosqlite.connect('lbx.db') as db:
@@ -121,16 +127,27 @@ async def follow(ctx, lb_id, member: discord.Member = None):
             await db.execute(f'''INSERT INTO {GUILDS[ctx.guild.name]}
                                 VALUES ('{member.id}', '{lb_id}', '{member.name}','{member.avatar_url}', '{lid}')''')
             await db.commit()
-        await ctx.send(f"Added [{lb_id}](https://boxd.it/{lid}).")
-    except Exception:
-        await ctx.send('User already exists')
+        user = {
+            "uid": member.id,
+            "lb_id": lb_id,
+            'username': member.name,
+            'avatar_url': str(member.avatar_url),
+            'lid': lid
+        }
+        users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
+
+        await ctx.send(f"Added {lb_id}.")
+    except Exception as e:
+        print(e)
+        await ctx.send('Error, maybe user already exists')
 
 
 @bot.command(help='unfollow user diary')
 async def unfollow(ctx, lb_id):
     async with aiosqlite.connect('lbx.db') as db:
         await db.execute(f'''DELETE FROM {GUILDS[ctx.guild.name]}
-                                WHERE lb_id='{lb_id}''')
+                                WHERE lb_id='{lb_id}'
+                            ''')
         await db.commit()
     await ctx.send(f"Removed {lb_id}.")
 
@@ -148,7 +165,7 @@ async def following(ctx):
     async with aiosqlite.connect('lbx.db') as db:
         async with db.execute(f'SELECT lb_id, username FROM {GUILDS[ctx.guild.name]}') as cursor:
             async for row in cursor:
-                follow_str += f'[{row[1]}](https://boxd.it/{row[0]}), '
+                follow_str += f'[{row[1]}](https://letterboxd.com/{row[0]}), '
 
     embed = discord.Embed(
         description=f'Following these users in {bot.get_channel(CHANNELS[ctx.guild.name]).mention}\n' + follow_str[:-2]
@@ -215,6 +232,80 @@ async def lrand(ctx, lb_id, *, keywords):
     embed.set_author(name=lb_id, url=f'https://boxd.it/{list_id}')
     await ctx.send(embed=embed)
 
+@bot.command(aliases=['ss'])
+@commands.cooldown(1,86400,commands.BucketType.user)
+async def ssync(ctx):
+    db_name = GUILDS[ctx.guild.name]
+    conn_url = CONN_URL[db_name]
+    client = pymongo.MongoClient(conn_url)
+    db = client[db_name]
+    users = db.users
+
+    async with aiosqlite.connect('lbx.db') as db:
+        async with db.execute(f'SELECT uid, lb_id, username, avatar_url, lid FROM {db_name}') as cursor:
+            async for row in cursor:
+                user = {
+                    "uid": row[0],
+                    "lb_id": row[1],
+                    'username': row[2],
+                    'avatar_url': row[3],
+                    'lid': row[4]
+                }
+                users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
+
+    subprocess.Popen(['python3', 'update.py', db_name])
+
+
+@bot.command(aliases=['us'])
+@commands.cooldown(1,3600,commands.BucketType.user)
+async def usync(ctx, member: discord.Member = None):
+    db_name = GUILDS[ctx.guild.name]
+    conn_url = CONN_URL[db_name]
+    client = pymongo.MongoClient(conn_url)
+    db = client[db_name]
+    users = db.users
+    member = member or ctx.author
+
+    async with aiosqlite.connect('lbx.db') as db:
+            await db.execute(f'''UPDATE {GUILDS[ctx.guild.name]}
+                                SET avatar_url='{member.avatar_url}'
+                                WHERE uid={member.id}
+            ''')
+            await db.commit()
+
+    user = {
+        'username': member.name,
+        'avatar_url': str(member.avatar_url),
+    }
+    users.update_one({'uid': member.id}, {"$set": user}, upsert=True)
+
+    subprocess.Popen(['python3', 'update.py', db_name, str(member.id)])
+
+
+@bot.command(aliases=['wk', 'seen'])
+async def whoknows(ctx, *, film_keywords):
+    db_name = GUILDS[ctx.guild.name]
+    conn_url = CONN_URL[db_name]
+    client = pymongo.MongoClient(conn_url)
+    db = client[db_name]
+    embed = who_knows_embed(lbx, db, film_keywords)
+    if embed:
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"No film found matching '{film_keywords}'")
+
+@bot.command(aliases=['topf'])
+async def top_films(ctx, threshold):
+    threshold = int(threshold)
+    if threshold < 1:
+        await ctx.send('At least 1 rating')
+        return
+    db_name = GUILDS[ctx.guild.name]
+    conn_url = CONN_URL[db_name]
+    client = pymongo.MongoClient(conn_url)
+    db = client[db_name]
+
+    await ctx.send(embed=top_films_embed(db, threshold))
 
 @setchannel.error
 async def setchannel_error(ctx, error):
