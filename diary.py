@@ -1,12 +1,12 @@
 import discord
 from markdownify import markdownify
 from film import get_link
+import api
 
-async def get_diary_embed(api, dids):
+async def get_diary_embed(dids):
     description = ''
     for did in dids:
-        res = api.api_call(path=f'log-entry/{did}')
-        d_entry = res.json()
+        d_entry = await api.api_call(path=f'log-entry/{did}')
         film = d_entry['film']
         description += f"**[{film['name']} ({film['releaseYear']})]"
         description += f'({get_link(d_entry)})**\n'

@@ -58,7 +58,7 @@ class Bot(commands.AutoShardedBot):
                             if entry_time > self.prev_time:
                                 dids.append(entry['diaryEntry']['id'])
                         if dids:
-                            d_embed = await get_diary_embed(api, dids)
+                            d_embed = await get_diary_embed(dids)
                             d_embed.set_author(
                                 name=row[2],
                                 url=f'https://letterboxd.com/{row[1]}',
