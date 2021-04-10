@@ -119,10 +119,14 @@ def who_knows_embed(lbx, db, film_keywords):
     db_info = films.find_one({'movie_id': movie_id})
 
     for rating in ratings.find({'movie_id': movie_id}):
+        total, count = 0, 0
         lb_id = rating['lb_id']
         rating_id = rating['rating_id']
         if rating_id == -1:
             rating_id = '✓'
+        else:
+            total += rating_id
+            count += 1
         description += f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n"
 
     title = f"Who knows {film_res['name']}"
@@ -140,8 +144,20 @@ def who_knows_embed(lbx, db, film_keywords):
         embed.set_thumbnail(url=url)
         details['poster_url'] = url
 
-    if db_info:
-        embed.set_footer(text=f"Server average: {db_info['guild_avg']:.2f}")
+    avg = total/count if count > 0 else 0
+    film = {
+        'movie_id': movie_id,
+        'guild_avg': avg,
+        'rating_count': count
+    }
+    films.update_one({
+        'movie_id': movie_id
+    },
+    {
+    "$set": film
+    }, upsert=True)
+
+    embed.set_footer(text=f"Server average: {avg:.2f}")
 
     films.update_one({'movie_id': movie_id}, {'$set': details}, upsert=True)
     return embed

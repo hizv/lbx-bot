@@ -32,7 +32,7 @@ class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.prev_time = datetime.utcnow()
-        self.check_feed.start()
+        #self.check_feed.start()
 
     @tasks.loop(minutes=15)
     async def check_feed(self):
