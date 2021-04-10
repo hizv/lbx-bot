@@ -72,11 +72,10 @@ def get_description(film_details, film_stats, verbosity=0, db=None):
     description += f"{human_count(film_stats['counts']['watches'])} watched\n"
 
     if db:
-        print('Yo')
         movie_id = get_link(film_details).split('/')[-2]
         db_info = db.films.find_one({'movie_id': movie_id})
         if db_info and 'guild_avg' in db_info:
-            description += f"Server: **{db_info['guild_avg']:.2f}** from {db_info['rating_count']}\n"
+            description += f"Server: **{0.5*db_info['guild_avg']:.2f}** from {db_info['rating_count']}\n"
 
     if film_details['genres']:
         genre_str = '*'
@@ -124,7 +123,6 @@ def who_knows_embed(lbx, db, film_keywords):
         rating_id = rating['rating_id']
         if rating_id == -1:
             rating_id = '✓'
-        #user = users.find_one({'lb_id': lb_id})
         description += f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n"
 
     title = f"Who knows {film_res['name']}"
@@ -161,8 +159,8 @@ def top_films_list(db, threshold):
     for film in top_films[:200]:
         movie_id = film['movie_id']
         if 'name' in film:
-            movie_id = film['name']
-        topf_short.append(f"[{movie_id}](https://letterboxd.com/film/{movie_id}): **{film['guild_avg']:.2f}** ({film['rating_count']})")
+            movie_name = film['name']
+        topf_short.append(f"[{movie_name}](https://letterboxd.com/film/{movie_id}): **{film['guild_avg']:.2f}** ({film['rating_count']})")
 
     return topf_short
 

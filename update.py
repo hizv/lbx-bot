@@ -63,7 +63,7 @@ async def generate_ratings_operations(response, send_to_db=True, return_unrated=
         else:
             rating_class = rating['class'][-1]
             rating_id = int(rating_class.split('-')[-1])
-            if response[1]["lb_id"] == 'hizv':
+            if response[1]["lb_id"] in ['hizv', 'ketchupin']:
                 rating_id *= 1.25
 
         rating_object = {
@@ -164,33 +164,58 @@ def main():
         # Find and store ratings for each user
         future = asyncio.ensure_future(get_ratings(all_lb_ids, users, db))
         loop.run_until_complete(future)
+
+    # Update rating avg
+        for movie_id in ratings.distinct('movie_id'):
+            total, count = 0, 0
+            for rating in ratings.find({'movie_id': movie_id}):
+                rating_id = rating['rating_id']
+                if rating_id != -1:
+                    total += rating_id
+                    count += 1
+            avg = total/count if count > 0 else 0
+            film = {
+                'movie_id': movie_id,
+                'guild_avg': avg,
+                'rating_count': count
+            }
+            pprint(film)
+            films.update_one({
+                'movie_id': movie_id
+            },
+            {
+                "$set": film
+            }, upsert=True)
+
     else:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         future = asyncio.ensure_future(get_user_ratings(users.find({'uid': int(sys.argv[2])})[0]['lb_id'], users, db))
+        print(future)
         loop.run_until_complete(future)
 
-    # Update rating avg
-    for movie_id in ratings.distinct('movie_id'):
-        total, count = 0, 0
-        for rating in ratings.find({'movie_id': movie_id}):
-            rating_id = rating['rating_id']
-            if rating_id != -1:
-                total += rating_id
-                count += 1
-        avg = total/count if count > 0 else 0
-        film = {
-            'movie_id': movie_id,
-            'guild_avg': avg,
-            'rating_count': count
-        }
-        pprint(film)
-        films.update_one({
-            'movie_id': movie_id
-        },
-        {
-            "$set": film
-        }, upsert=True)
+        # Update rating avg
+        for movie_id in ratings.find({'uid': int(sys.argv[2])}):
+            total, count = 0, 0
+            for rating in ratings.find({'movie_id': movie_id}):
+                rating_id = rating['rating_id']
+                if rating_id != -1:
+                    total += rating_id
+                    count += 1
+            avg = total/count if count > 0 else 0
+            film = {
+                'movie_id': movie_id,
+                'guild_avg': avg,
+                'rating_count': count
+            }
+            pprint(film)
+            films.update_one({
+                'movie_id': movie_id
+            },
+            {
+                "$set": film
+            }, upsert=True)
+
 
 if __name__ == "__main__":
     main()

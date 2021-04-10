@@ -1,29 +1,24 @@
-import asyncio
 from datetime import datetime
 import random
-import subprocess
-from discord.ext import commands, menus
+from discord.ext import commands, menus, tasks
 import discord
 import letterboxd
 import aiosqlite
 from imdbpie import Imdb
 from imdb import IMDb
-from lists import get_list_id
+import pymongo
+from aioshell import run
+import api
 from config import SETTINGS, CONN_URL
 from crew import get_crew_embed
 from diary import get_diary_embed, get_lid
 from film import get_film_embed, who_knows_embed, top_films_list
-import pymongo
+from lists import get_list_id
+
 
 GUILDS, CHANNELS = SETTINGS['guilds'], SETTINGS['channels']
 prefix = SETTINGS['prefix']
 lbx = letterboxd.new(
-    api_key=SETTINGS['letterboxd']['api_key'],
-    api_secret=SETTINGS['letterboxd']['api_secret']
-)
-
-api = letterboxd.api.API(
-    api_base='https://api.letterboxd.com/api/v0',
     api_key=SETTINGS['letterboxd']['api_key'],
     api_secret=SETTINGS['letterboxd']['api_secret']
 )
@@ -36,42 +31,41 @@ TRACKING_ACTIVITIES = ['DiaryEntryActivity']
 class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        #self.bg_task = self.loop.create_task(self.check_feed())
+        self.prev_time = datetime.utcnow()
+        self.check_feed.start()
 
+    @tasks.loop(minutes=15)
     async def check_feed(self):
-        await self.wait_until_ready()
-        while not self.is_closed():
-            prev_time = datetime.utcnow()
-            await asyncio.sleep(1500)
-            for guild, guild_id in GUILDS.items():
-                channel = self.get_channel(CHANNELS[guild])
-                async with aiosqlite.connect('lbx.db') as db:
-                    async with db.execute(f'SELECT * FROM {guild_id}') as cursor:
-                        async for row in cursor:
-                            print(row)
-                            ratings_request = {
-                                'perPage': 100,
-                                'include': TRACKING_ACTIVITIES,
-                                'where': ['OwnActivity', 'NotIncomingActivity']
-                            }
-                            res = api.api_call(
-                                path=f'member/{row[4]}/activity',
-                                params=ratings_request)
-                            activity = res.json()
-                            entries = extend([], activity['items'], 4)
-                            dids = []
-                            for entry in entries:
-                                entry_time = datetime.strptime(entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
-                                if entry_time > prev_time:
-                                    dids.append(entry['diaryEntry']['id'])
-                            if dids:
-                                d_embed = await get_diary_embed(api, dids)
-                                d_embed.set_author(
-                                    name=row[2],
-                                    url=f'https://letterboxd.com/{row[1]}',
-                                    icon_url=row[3]
-                                )
-                                await channel.send(embed=d_embed)
+        for guild, guild_id in GUILDS.items():
+            channel = self.get_channel(CHANNELS[guild])
+            async with aiosqlite.connect('lbx.db') as db:
+                async with db.execute(f'SELECT * FROM {guild_id}') as cursor:
+                    async for row in cursor:
+                        print(row)
+                        ratings_request = {
+                            'perPage': 100,
+                            'include': 'DiaryEntryActivity',
+                            'where': 'OwnActivity',
+                            'where': 'NotIncomingActivity'
+                        }
+                        activity = await api.api_call(
+                            path=f'member/{row[4]}/activity',
+                            params=ratings_request)
+                        entries = extend([], activity['items'], 4)
+                        dids = []
+                        for entry in entries:
+                            entry_time = datetime.strptime(entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
+                            if entry_time > self.prev_time:
+                                dids.append(entry['diaryEntry']['id'])
+                        if dids:
+                            d_embed = await get_diary_embed(api, dids)
+                            d_embed.set_author(
+                                name=row[2],
+                                url=f'https://letterboxd.com/{row[1]}',
+                                icon_url=row[3]
+                            )
+                            await channel.send(embed=d_embed)
+        self.prev_time = datetime.utcnow()
 
 
 class MyHelp(commands.MinimalHelpCommand):
@@ -118,7 +112,6 @@ async def film(ctx, *, film_keywords):
     guild_name = ctx.guild.name
     db = None
     if guild_name in GUILDS:
-        print('Hi')
         db_name = GUILDS[guild_name]
         conn_url = CONN_URL[db_name]
         client = pymongo.MongoClient(conn_url)
@@ -130,7 +123,7 @@ async def film(ctx, *, film_keywords):
         await ctx.send(embed=embed)
 
 
-@bot.command(help='follow user diary')
+@bot.command(help='Follow your diary. Takes your LB username as input')
 async def follow(ctx, lb_id, member: discord.Member = None):
     db_name = GUILDS[ctx.guild.name]
     conn_url = CONN_URL[db_name]
@@ -242,16 +235,15 @@ async def lrand(ctx, lb_id, *, keywords):
     if not list_id:
         await ctx.send(f"No matching list for '{keywords}'")
         return
-    res = api.api_call(f'list/{list_id}/entries', params={'perPage': 100})
-    L = res.json()
+    L = await api.api_call(f'list/{list_id}/entries', params={'perPage': 100})
     size_L = len(L['items'])
     random_film = L['items'][random.randrange(0, size_L)]['film']
     embed=get_film_embed(lbx, film_id=random_film['id'])
     embed.set_author(name=lb_id, url=f'https://boxd.it/{list_id}')
     await ctx.send(embed=embed)
 
-@bot.command(aliases=['ss'])
-@commands.cooldown(1,86400,commands.BucketType.user)
+@bot.command(aliases=['ss'], help='Sync server ratings. Do NOT use unless really really required!')
+@commands.cooldown(1,864000,commands.BucketType.user)
 async def ssync(ctx):
     db_name = GUILDS[ctx.guild.name]
     conn_url = CONN_URL[db_name]
@@ -271,10 +263,11 @@ async def ssync(ctx):
                 }
                 users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
 
-    subprocess.Popen(['python3', 'update.py', db_name])
+    async with ctx.typing():
+        r = await run(f'python3 update.py {db_name}')
+        await ctx.send('Done updating {db_name}')
 
-
-@bot.command(aliases=['us'])
+@bot.command(aliases=['us'], help='Sync user ratings. Can take other user as argument.')
 @commands.cooldown(1,3600,commands.BucketType.user)
 async def usync(ctx, member: discord.Member = None):
     db_name = GUILDS[ctx.guild.name]
@@ -285,11 +278,11 @@ async def usync(ctx, member: discord.Member = None):
     member = member or ctx.author
 
     async with aiosqlite.connect('lbx.db') as db:
-            await db.execute(f'''UPDATE {GUILDS[ctx.guild.name]}
+        await db.execute(f'''UPDATE {GUILDS[ctx.guild.name]}
                                 SET avatar_url='{member.avatar_url}'
                                 WHERE uid={member.id}
             ''')
-            await db.commit()
+        await db.commit()
 
     user = {
         'username': member.name,
@@ -297,7 +290,9 @@ async def usync(ctx, member: discord.Member = None):
     }
     users.update_one({'uid': member.id}, {"$set": user}, upsert=True)
 
-    subprocess.Popen(['python3', 'update.py', db_name, str(member.id)])
+    async with ctx.typing():
+        await run(f'python3 update.py {db_name} {member.id}')
+        await ctx.send(f'Done updating {member.name}')
 
 
 @bot.command(aliases=['wk', 'seen'])
