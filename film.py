@@ -174,8 +174,7 @@ def top_films_list(db, threshold):
     topf_short = []
     for film in top_films[:200]:
         movie_id = film['movie_id']
-        if 'name' in film:
-            movie_name = film['name']
+        movie_name = film['name'] if 'name' in film else movie_id
         topf_short.append(f"[{movie_name}](https://letterboxd.com/film/{movie_id}): **{film['guild_avg']:.2f}** ({film['rating_count']})")
 
     return topf_short

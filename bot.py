@@ -32,7 +32,7 @@ class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.prev_time = datetime.utcnow()
-        #self.check_feed.start()
+        self.check_feed.start()
 
     @tasks.loop(minutes=15)
     async def check_feed(self):
@@ -51,7 +51,10 @@ class Bot(commands.AutoShardedBot):
                         activity = await api.api_call(
                             path=f'member/{row[4]}/activity',
                             params=ratings_request)
-                        entries = extend([], activity['items'], 4)
+                        if not activity:
+                            continue
+
+                        entries = extend([], activity['items'], 4, row[4])
                         dids = []
                         for entry in entries:
                             entry_time = datetime.strptime(entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
@@ -66,6 +69,10 @@ class Bot(commands.AutoShardedBot):
                             )
                             await channel.send(embed=d_embed)
         self.prev_time = datetime.utcnow()
+
+    @check_feed.before_loop
+    async def before_feed(self):
+        await self.wait_until_ready()
 
 
 class MyHelp(commands.MinimalHelpCommand):
@@ -265,7 +272,7 @@ async def ssync(ctx):
 
     async with ctx.typing():
         r = await run(f'python3 update.py {db_name}')
-        await ctx.send('Done updating {db_name}')
+        await ctx.send(f'Done updating {db_name}')
 
 @bot.command(aliases=['us'], help='Sync user ratings. Can take other user as argument.')
 @commands.cooldown(1,3600,commands.BucketType.user)
@@ -325,12 +332,12 @@ async def setchannel_error(ctx, error):
     if isinstance(error, commands.errors.MissingPermissions):
         await ctx.send('Not...for you.')
 
-def extend(entries, items, limit):
+def extend(entries, items, limit, lid):
     count = 0
     for act in items:
         if count == limit:
             break
-        if act['type'] in TRACKING_ACTIVITIES:
+        if act['type'] in TRACKING_ACTIVITIES and act['member']['id'] == lid:
             entries.append(act)
             count += 1
 
