@@ -118,8 +118,8 @@ def who_knows_embed(lbx, db, film_keywords):
     details = {'name': film_res['name']}
     db_info = films.find_one({'movie_id': movie_id})
 
+    total, count = 0, 0
     for rating in ratings.find({'movie_id': movie_id}):
-        total, count = 0, 0
         lb_id = rating['lb_id']
         rating_id = rating['rating_id']
         if rating_id == -1:

@@ -34,7 +34,7 @@ class Bot(commands.AutoShardedBot):
         self.prev_time = datetime.utcnow()
         self.check_feed.start()
 
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=20)
     async def check_feed(self):
         for guild, guild_id in GUILDS.items():
             channel = self.get_channel(CHANNELS[guild])
@@ -51,7 +51,7 @@ class Bot(commands.AutoShardedBot):
                         activity = await api.api_call(
                             path=f'member/{row[4]}/activity',
                             params=ratings_request)
-                        if not activity:
+                        if 'items' not in activity:
                             continue
 
                         entries = extend([], activity['items'], 4, row[4])
@@ -302,12 +302,16 @@ async def usync(ctx, member: discord.Member = None):
         await ctx.send(f'Done updating {member.name}')
 
 
-@bot.command(aliases=['wk', 'seen'])
+@bot.command(aliases=['wk', 'seen', '/wk'])
 async def whoknows(ctx, *, film_keywords):
     db_name = GUILDS[ctx.guild.name]
     conn_url = CONN_URL[db_name]
     client = pymongo.MongoClient(conn_url)
     db = client[db_name]
+
+    if ctx.invoked_with.count('/') == 1:
+        await usync(ctx, ctx.author)
+
     embed = who_knows_embed(lbx, db, film_keywords)
     if embed:
         await ctx.send(embed=embed)

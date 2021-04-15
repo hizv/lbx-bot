@@ -25,10 +25,7 @@ async def api_call(path, params=None, letterboxd=True, is_json=True):
         api_url = url + '&signature=' +  __sign(url)
     async with aiohttp.ClientSession() as cs:
         async with cs.get(api_url) as r:
-            if r.status >= 500 and letterboxd:
-                raise LetterboxdError('A request to the Letterboxd API failed.' +
-                                    ' This may be due to a server issue.')
-            elif r.status >= 400:
+            if r.status >= 400:
                 return ''
             if is_json:
                 response = await r.json()
