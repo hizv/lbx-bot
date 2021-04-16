@@ -12,7 +12,7 @@
 # Built with
 * [discord.py](https://github.com/Rapptz/discord.py)
 * [Python wrapper](https://github.com/bobtiki/letterboxd) for [Letterboxd API](http://api-docs.letterboxd.com)
-* sqlite3 with [aiosqlite](https://github.com/omnilib/aiosqlite) for storing users' Letterboxd IDs
+* postgresql with [asyncpg](https://github.com/MagicStack/asyncpg) for storing users' Letterboxd IDs
 * imdbpie, imdbpy and wikipedia for crew information
 * BeautifulSoup for scraping user ratings
 * MongoDB for storing the user ratings, inspired by [Sam Learner](https://github.com/sdl60660/letterboxd_recommendations)
@@ -23,4 +23,6 @@
 * [Feedparser](https://github.com/kurtmckee/feedparser) for tracking diary activity using RSS
   * Later switched to its async version [feedparser-data](https://gitlab.com/foxmask/feedparser-data)
     * Currently using the Letterboxd API
+
+* [aiosqlite](https://github.com/omnilib/aiosqlite) for storing boxd IDs
     
