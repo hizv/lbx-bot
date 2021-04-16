@@ -11,8 +11,10 @@ import pymongo
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-from config import CONN_URL
+from config import conn_url
 
+def get_conn_url(db_name):
+    return conn_url + db_name + '?retryWrites=true&w=majority'
 
 async def fetch(url, session, input_data={}):
     async with session.get(url) as response:
@@ -146,7 +148,7 @@ async def get_ratings(lb_ids, db_cursor=None, mongo_db=None, store_in_db=True):
 def main():
     # Connect to MongoDB Client
     db_name = sys.argv[1]
-    client = pymongo.MongoClient(CONN_URL[db_name])
+    client = pymongo.MongoClient(get_conn_url(db_name))
 
     # Find letterboxd database and user collection
     db = client[db_name]
