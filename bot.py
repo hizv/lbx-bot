@@ -94,6 +94,11 @@ ALTER TABLE {schema}.users
             await self.db.execute('INSERT INTO public.guilds (id) VALUES ($1)', guild.id)
         await self.db.release(connection)
 
+    async def on_guild_remove(self, guild):
+        conn = await self.db.acquire()
+        async with conn.transaction():
+            await self.db.execute('DELETE FROM public.guilds WHERE id=$1', guild.id)
+        await self.db.release(conn)
     @tasks.loop(minutes=20)
     async def check_feed(self):
         conn = await self.db.acquire()

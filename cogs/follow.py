@@ -2,9 +2,8 @@ import discord
 from discord.ext import commands, menus
 import pymongo
 from utils.diary import get_lid
-from config import SETTINGS, CONN_URL, conn_url
+from config import SETTINGS, conn_url
 
-GUILDS, CHANNELS = SETTINGS['guilds'], SETTINGS['channels']
 
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
@@ -67,14 +66,15 @@ class Follow(commands.Cog):
         await self.db.release(conn)
         await ctx.send(f'Now following updates in {channel.mention}')
 
-    @commands.command(help='list followed users', aliases=['/follow'])
+    @commands.command(help='list followed users', aliases=[SETTINGS['prefix'] + 'follow'])
     async def following(self, ctx):
         follow_str = ''
         conn = await self.db.acquire()
         async with conn.transaction():
             async for row in conn.cursor(f'SELECT lb_id, uid FROM g{ctx.guild.id}.users'):
                 user = self.bot.get_user(row[1])
-                follow_str += f'[{user.display_name}](https://letterboxd.com/{row[0]}), '
+                display_name = row[0] if not user else user.display_name
+                follow_str += f'[{display_name}](https://letterboxd.com/{row[0]}), '
 
         chan_id = await conn.fetchval(f'SELECT channel_id FROM public.guilds WHERE id={ctx.guild.id}')
         await self.db.release(conn)

@@ -7,8 +7,9 @@ from imdb import IMDb
 import pymongo
 import wikipedia
 from utils import api, diary, film
-from config import conn_url
+from config import conn_url, SETTINGS
 
+prefix = SETTINGS['prefix']
 
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
@@ -81,9 +82,9 @@ class Film(commands.Cog):
         self.lbx = bot.lbx
 
     @commands.command(help='search a film, more / for more details',
-                aliases=['f', '/f'])
+                aliases=['f', prefix + 'f'])
     async def film(self, ctx, *, film_keywords):
-        verbosity = ctx.invoked_with.count('/')
+        verbosity = ctx.invoked_with.count(prefix)
         db = None
         conn = await self.db.acquire()
         async with conn.transaction():
@@ -101,9 +102,9 @@ class Film(commands.Cog):
 
 
     @commands.command(help='Get info about a crew member',
-                aliases=['c', '/c'])
+                aliases=['c', prefix + 'c'])
     async def crew(self, ctx, *, crew_keywords):
-        verbosity = ctx.invoked_with.count('/')
+        verbosity = ctx.invoked_with.count(prefix)
 
         search_request = {
             'perPage': 1,
