@@ -105,6 +105,8 @@ ALTER TABLE {schema}.users
         async with conn.transaction():
             async for guild in conn.cursor('SELECT id, channel_id FROM public.guilds'):
                 channel = self.get_channel(guild[1])
+                if not channel:
+                    continue
                 async for row in conn.cursor(f'SELECT uid, lb_id, lid FROM g{guild[0]}.users'):
                     print(row)
                     user = self.get_user(row[0])

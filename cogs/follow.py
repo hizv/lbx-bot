@@ -4,6 +4,7 @@ import pymongo
 from utils.diary import get_lid
 from config import SETTINGS, conn_url
 
+prefix = SETTINGS['prefix']
 
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
@@ -26,6 +27,7 @@ class Follow(commands.Cog):
             conn = await self.db.acquire()
             async with conn.transaction():
                 lid = await get_lid(self.bot.lbx, lb_id)
+                chan_id = await conn.fetchval(f'SELECT channel_id FROM public.guilds WHERE id={ctx.guild.id}')
                 await self.db.execute(f'''INSERT INTO {db_name}.users (uid, lb_id, lid)
                                      VALUES ({member.id}, $1, $2)''', lb_id, lid)
             user = {
@@ -66,7 +68,7 @@ class Follow(commands.Cog):
         await self.db.release(conn)
         await ctx.send(f'Now following updates in {channel.mention}')
 
-    @commands.command(help='list followed users', aliases=[SETTINGS['prefix'] + 'follow'])
+    @commands.command(help='list followed users', aliases=[f'{prefix}follow'])
     async def following(self, ctx):
         follow_str = ''
         conn = await self.db.acquire()
@@ -78,7 +80,15 @@ class Follow(commands.Cog):
 
         chan_id = await conn.fetchval(f'SELECT channel_id FROM public.guilds WHERE id={ctx.guild.id}')
         await self.db.release(conn)
-        embed = discord.Embed(
+
+        embed = None
+        if not chan_id:
+           await ctx.send(f"No follow channel set. Will not post updates. See {prefix}help setchan for details.")
+           embed = discord.Embed(
+               description=f'Will sync the following users on {prefix}ssync:\n{follow_str}'
+           )
+        else:
+            embed = discord.Embed(
             description=f'Following these users in {self.bot.get_channel(chan_id).mention}\n' + follow_str[:-2]
         )
         await ctx.send(embed=embed)
