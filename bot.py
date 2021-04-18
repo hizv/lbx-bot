@@ -68,27 +68,25 @@ class Bot(commands.AutoShardedBot):
             schema = f'g{guild.id}'
             init_schema = f'''
 CREATE SCHEMA IF NOT EXISTS {schema};
-CREATE TABLE {schema}.films (
+CREATE TABLE IF NOT EXISTS {schema}.films (
             movie_id text COLLATE pg_catalog."default" NOT NULL,
             guild_avg real,
             rating_count smallint,
             CONSTRAINT films_pkey PRIMARY KEY (movie_id)) TABLESPACE pg_default;
 ALTER TABLE {schema}.films OWNER to postgres;
-CREATE TABLE {schema}.ratings (
+CREATE TABLE IF NOT EXISTS {schema}.ratings (
     u_lid text COLLATE pg_catalog."default" NOT NULL,
     movie_id text COLLATE pg_catalog."default" NOT NULL,
     rating_id smallint NOT NULL
 ) TABLESPACE pg_default;
-ALTER TABLE {schema}.ratings
-    OWNER to postgres;
-CREATE TABLE {schema}.users (
+ALTER TABLE {schema}.ratings OWNER to postgres;
+CREATE TABLE IF NOT EXISTS {schema}.users (
     lb_id text COLLATE pg_catalog."default" NOT NULL,
     lid text COLLATE pg_catalog."default",
     uid bigint NOT NULL,
     CONSTRAINT users_pkey PRIMARY KEY (uid)
 ) TABLESPACE pg_default;
-ALTER TABLE {schema}.users
-    OWNER to postgres;
+ALTER TABLE {schema}.users OWNER to postgres;
 '''
             await self.db.execute(init_schema)
             await self.db.execute('INSERT INTO public.guilds (id) VALUES ($1)', guild.id)
