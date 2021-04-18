@@ -3,9 +3,8 @@ from discord.ext import commands, menus
 import pymongo
 from aioshell import run
 from config import conn_url, SETTINGS
-from utils.film import who_knows_embed, top_films_list
-from utils import api, film
-from pprint import pprint
+from utils.film import who_knows_embed, top_films_list, get_link
+from utils import api
 
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
@@ -88,16 +87,18 @@ class Ratings(commands.Cog):
         pages = menus.MenuPages(source=MySource(top_films_list(db, threshold)), clear_reactions_after=True)
         await pages.start(ctx)
 
-    @commands.command(aliases=['wka', 'wkc', 'wkd', 'wkp', 'wke', 'wkw'],
-                      help='''Get the server's ratings for a person by appending
+    @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'],
+                      help='''Get the server's ratings for a crew by appending
                       a (Actor),
                       c (Composer),
                       d (Director),
-                      p (Producer),
-                      e (Editor), or
-                      w (Writer) to wk (who knows)''')
-    async def whoknowscrew(self, ctx, *, crew_keywords):
-        role = ctx.invoked_with[-1].upper()
+                      e (Editor),
+                      p (Producer), or
+                      w (Writer), to f (films).
+                      Can be used once every minute.''')
+    @commands.cooldown(1,60,commands.BucketType.user)
+    async def filmscrew(self, ctx, *, crew_keywords):
+        role = ctx.invoked_with[-1].lower()
         search_request = {
             'perPage': 1,
             'input': crew_keywords,
@@ -110,7 +111,20 @@ class Ratings(commands.Cog):
             await ctx.send(f'Nobody found matching {crew_keywords}')
             return
 
-        res = await api.api_call(f"contributor/{crew['id']}/contributions")
+        TYPE_CONTRIB = {
+            'a': 'Actor',
+            'c': 'Composer',
+            'd': 'Director',
+            'e': 'Editor',
+            'p': 'Producer',
+            'w': 'Writer',
+        }
+
+        contrib_req = {
+            'perPage': 20,
+            'type': TYPE_CONTRIB[role]
+        }
+        res = await api.api_call(f"contributor/{crew['id']}/contributions", params=contrib_req)
         if 'items' not in res:
             await ctx.send('Connection to Letterboxd failed')
             return
@@ -124,19 +138,18 @@ class Ratings(commands.Cog):
             films = db.films
         async with ctx.typing():
             for contrib in res['items']:
-                if contrib['type'][0] == role:
-                    role_name = contrib['type']
-                    link = film.get_link(contrib['film'])
-                    details = {'name': contrib['film']['name']}
-                    body += f"[{contrib['film']['name']}]({link}) "
-                    if 'releaseYear' in contrib['film']:
-                        body += f"({contrib['film']['releaseYear']}) "
-                    if db:
-                        movie_id = link.split('/')[-2]
-                        db_info = films.find_one({'movie_id': movie_id})
-                        if db_info and 'guild_avg' in db_info and db_info['rating_count'] != 0:
-                            body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
-                    body += '\n'
+                role_name = contrib['type']
+                link = get_link(contrib['film'])
+                details = {'name': contrib['film']['name']}
+                body += f"[{contrib['film']['name']}]({link}) "
+                if 'releaseYear' in contrib['film']:
+                    body += f"({contrib['film']['releaseYear']}) "
+                if db:
+                    movie_id = link.split('/')[-2]
+                    db_info = films.find_one({'movie_id': movie_id})
+                    if db_info and 'guild_avg' in db_info and db_info['rating_count'] != 0:
+                        body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
+                body += '\n'
 
         embed = discord.Embed(
             title=f"{role_name} {crew['name']}",
