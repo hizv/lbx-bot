@@ -97,6 +97,25 @@ ALTER TABLE {schema}.users OWNER to postgres;
         async with conn.transaction():
             await self.db.execute('DELETE FROM public.guilds WHERE id=$1', guild.id)
         await self.db.release(conn)
+
+    async def on_command_error(self, ctx, error):
+        if hasattr(ctx.command, 'on_error'):
+            return
+        cog = ctx.cog
+        if cog:
+            if cog._get_overridden_method(cog.cog_command_error) is not None:
+                return
+
+        ignored = (commands.CommandNotFound, )
+
+        error = getattr(error, 'original', error)
+
+        if isinstance(error, ignored):
+            return
+
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(f"Missing argument, check {prefix}help")
+
     @tasks.loop(minutes=20)
     async def check_feed(self):
         conn = await self.db.acquire()
