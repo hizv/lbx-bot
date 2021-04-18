@@ -20,6 +20,23 @@ async def fetch(url, session, input_data={}):
     async with session.get(url) as response:
         return await response.read(), input_data
 
+def get_page_count(username):
+    url = "https://letterboxd.com/{}/films/by/date"
+    r = requests.get(url.format(username))
+
+    soup = BeautifulSoup(r.text, "lxml")
+
+    body = soup.find("body")
+    if "error" in body["class"]:
+        return -1
+
+    try:
+        page_link = soup.findAll("li", attrs={"class", "paginate-page"})[-1]
+        num_pages = int(page_link.find("a").text.replace(',', ''))
+    except IndexError:
+        num_pages = 1
+
+    return num_pages
 
 async def get_page_counts(lb_ids, users_cursor):
     url = "https://letterboxd.com/{}/films/"
@@ -190,9 +207,11 @@ def main():
             }, upsert=True)
 
     else:
+        lb_id = users.find({'uid': int(sys.argv[2])})[0]['lb_id']
+        num_pages = get_page_count(lb_id)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        future = asyncio.ensure_future(get_user_ratings(users.find({'uid': int(sys.argv[2])})[0]['lb_id'], users, db))
+        future = asyncio.ensure_future(get_user_ratings(lb_id, users, db, num_pages=num_pages))
         print(future)
         loop.run_until_complete(future)
 

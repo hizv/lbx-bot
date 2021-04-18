@@ -29,8 +29,6 @@ class Follow(commands.Cog):
                 lid = await get_lid(self.bot.lbx, lb_id)
                 await self.db.execute(f'''INSERT INTO {db_name}.users (uid, lb_id, lid)
                                      VALUES ({member.id}, $1, $2)''', lb_id, lid)
-            await self.db.release(conn)
-
             user = {
                 "uid": member.id,
                 "lb_id": lb_id,
@@ -39,9 +37,13 @@ class Follow(commands.Cog):
             users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
 
             await ctx.send(f"Added {lb_id}.")
+            await self.bot.get_cog('Ratings').usync(ctx, member)
         except Exception as e:
             print(e)
             await ctx.send('Error, maybe user already exists')
+        finally:
+            await self.db.release(conn)
+
 
 
     @commands.command(help='unfollow user diary')

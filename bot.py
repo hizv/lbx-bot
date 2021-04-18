@@ -28,11 +28,8 @@ async def run():
 
     for extension in initial_extensions:
         bot.load_extension(extension)
-    try:
-        await bot.start(SETTINGS['token'])
-    except KeyboardInterrupt:
-        await db.close()
-        await bot.logout()
+
+    await bot.start(SETTINGS['token'])
 
 def extend(entries, items, limit, lid):
     count = 0
@@ -94,7 +91,7 @@ ALTER TABLE {schema}.users
     OWNER to postgres;
 '''
             await self.db.execute(init_schema)
-            await self.db.execute('INSERT INTO public.guilds (id, db_name) VALUES ($1, $2)', guild.id, schema)
+            await self.db.execute('INSERT INTO public.guilds (id) VALUES ($1)', guild.id)
         await self.db.release(connection)
 
     @tasks.loop(minutes=20)
@@ -107,6 +104,7 @@ ALTER TABLE {schema}.users
                     print(row)
                     user = self.get_user(row[0])
                     if not user:
+                        print(row[1])
                         continue
 
                     ratings_request = {
@@ -135,6 +133,7 @@ ALTER TABLE {schema}.users
                         )
                         await channel.send(embed=d_embed)
         self.prev_time = datetime.utcnow()
+        await self.db.release(conn) 
 
     @check_feed.before_loop
     async def before_feed(self):
