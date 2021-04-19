@@ -6,6 +6,8 @@ from config import conn_url, SETTINGS
 from utils.film import who_knows_embed, top_films_list, get_link
 from utils import api
 
+prefix = SETTINGS['prefix']
+
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
 
@@ -26,8 +28,8 @@ class Ratings(commands.Cog):
         self.db = bot.db
         self.lbx = bot.lbx
 
-    @commands.command(aliases=['ss'], help='Sync server ratings. Use restricted to once every four days.')
-    @commands.cooldown(1,345600,commands.BucketType.user)
+    @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every four days.')
+    @commands.cooldown(1, 345600, commands.BucketType.guild)
     async def ssync(self, ctx):
         db_name = f'g{ctx.guild.id}'
         client = pymongo.MongoClient(get_conn_url(db_name))
@@ -49,7 +51,7 @@ class Ratings(commands.Cog):
             r = await run(f'python3 update.py {db_name}')
             await ctx.send(f'Done updating {ctx.guild.name}')
 
-    @commands.command(aliases=['us'], help='Sync user ratings. Can take other user as argument.')
+    @commands.command(aliases=['us'], help='Update user ratings. Mention someone to update their ratings.')
     @commands.cooldown(1,3600,commands.BucketType.user)
     async def usync(self, ctx, member: discord.Member = None):
         db_name = f'g{ctx.guild.id}'
@@ -60,13 +62,14 @@ class Ratings(commands.Cog):
             await ctx.send(f'Done updating {member.name}')
 
 
-    @commands.command(aliases=['wk', 'seen', '/wk'])
+    @commands.command(aliases=['wk', 'seen', prefix+'wk'],
+                      help='Check *who knows* a film, and their ratings')
     async def whoknows(self, ctx, *, film_keywords):
         db_name = f'g{ctx.guild.id}'
         client = pymongo.MongoClient(get_conn_url(db_name))
         db = client[db_name]
 
-        if ctx.invoked_with.count(SETTINGS['prefix']) == 1:
+        if ctx.invoked_with.count(prefix) == 1:
             await usync(ctx, ctx.author)
 
         embed = who_knows_embed(self.bot.lbx, db, film_keywords)
@@ -75,7 +78,9 @@ class Ratings(commands.Cog):
         else:
             await ctx.send(f"No film found matching '{film_keywords}'")
 
-    @commands.command(aliases=['topf'])
+    @commands.command(aliases=['topf'],
+                      help='''Get a list of the server's highest rated films. Takes the minimum number of ratings as argument.
+                      NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.''')
     async def top_films(self, ctx, threshold):
         threshold = int(threshold)
         if threshold < 1:
@@ -88,14 +93,16 @@ class Ratings(commands.Cog):
         await pages.start(ctx)
 
     @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'],
-                      help='''Get the server's ratings for a crew by appending
+                      help=f'''NOTE: filmscrew is just a placeholder for the aliases. DO NOT USE filmscrew by itself. Use the aliases as follows.
+                      Get the server's ratings for a crew by appending
                       a (Actor),
                       c (Composer),
                       d (Director),
                       e (Editor),
                       p (Producer), or
                       w (Writer), to f (films).
-                      Can be used once every minute.''')
+                      Can be used once every minute.
+                      Example: ``{prefix}fd lynch`` to get a list of films directed by David Lynch''')
     @commands.cooldown(1,60,commands.BucketType.user)
     async def filmscrew(self, ctx, *, crew_keywords):
         role = ctx.invoked_with[-1].lower()

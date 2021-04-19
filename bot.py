@@ -24,6 +24,8 @@ async def run():
     bot = Bot(command_prefix=prefix,
               help_command=MyHelp(),
               intents=intents,
+              activity=discord.Activity(
+                  type=discord.ActivityType.listening, name=f'{prefix}help'),
               db=db)
 
     for extension in initial_extensions:

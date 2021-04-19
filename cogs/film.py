@@ -81,7 +81,7 @@ class Film(commands.Cog):
         self.ia = IMDb()
         self.lbx = bot.lbx
 
-    @commands.command(help='search a film, more / for more details',
+    @commands.command(help=f'search a film\n{prefix}{prefix}f to also get the synopsis',
                 aliases=['f', prefix + 'f'])
     async def film(self, ctx, *, film_keywords):
         verbosity = ctx.invoked_with.count(prefix)
@@ -101,7 +101,7 @@ class Film(commands.Cog):
             await ctx.send(embed=embed)
 
 
-    @commands.command(help='Get info about a crew member',
+    @commands.command(help=f'Get info about a crew member\nUse {prefix}c to get a longer bio',
                 aliases=['c', prefix + 'c'])
     async def crew(self, ctx, *, crew_keywords):
         verbosity = ctx.invoked_with.count(prefix)
@@ -137,7 +137,7 @@ class Film(commands.Cog):
         }
         watchlist = member.watchlist(watchlist_request=watchlist_request)
         if not watchlist['items']:
-            await ctx.send('Private or empty watchlist. Or try using /wrand (number of items in your watchlist)')
+            await ctx.send('Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
             return
         random_film = watchlist['items'][random.randrange(0, quantity)]
 
