@@ -15,7 +15,10 @@ class Follow(commands.Cog):
         self.bot = bot
         self.db = bot.db
 
-    @commands.command(help='Follow your diary. Takes your LB username as input')
+    @commands.command(help=f'''Follow your diary. Takes your LB username as input.
+    Must set a channel using ``{prefix}setchan`` for entries to start popping.
+    Examples:\n1. To add yourself if your Letterboxd username is 'mp4' (you don't need to be a mod): ``{prefix}follow mp4``
+    2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``''')
     async def follow(self, ctx, lb_id, member: discord.Member = None):
         db_name = f'g{ctx.guild.id}'
         client = pymongo.MongoClient(get_conn_url(db_name))
@@ -47,7 +50,7 @@ class Follow(commands.Cog):
 
 
 
-    @commands.command(help='unfollow user diary')
+    @commands.command(help='Unfollow user diary')
     async def unfollow(self, ctx, lb_id):
         conn = await self.db.acquire()
         async with conn.transaction():
@@ -58,7 +61,7 @@ class Follow(commands.Cog):
         await ctx.send(f"Removed {lb_id}.")
 
 
-    @commands.command(aliases=['setchan'], help='set channel where updates appear')
+    @commands.command(aliases=['setchan'], help='Set the channel where updates appear.')
     @commands.has_guild_permissions(manage_channels=True)
     async def setchannel(self, ctx, channel: discord.TextChannel):
         conn = await self.db.acquire()
@@ -68,7 +71,7 @@ class Follow(commands.Cog):
         await self.db.release(conn)
         await ctx.send(f'Now following updates in {channel.mention}')
 
-    @commands.command(help='list followed users', aliases=[f'{prefix}follow'])
+    @commands.command(help='List followed users', aliases=[f'{prefix}follow'])
     async def following(self, ctx):
         follow_str = ''
         conn = await self.db.acquire()

@@ -141,8 +141,6 @@ class Ratings(commands.Cog):
         client = pymongo.MongoClient(get_conn_url(db_name))
         db = client[db_name]
         role_name = ''
-        if db:
-            films = db.films
         async with ctx.typing():
             for contrib in res['items']:
                 role_name = contrib['type']
@@ -151,9 +149,9 @@ class Ratings(commands.Cog):
                 body += f"[{contrib['film']['name']}]({link}) "
                 if 'releaseYear' in contrib['film']:
                     body += f"({contrib['film']['releaseYear']}) "
-                if db:
+                if db.films:
                     movie_id = link.split('/')[-2]
-                    db_info = films.find_one({'movie_id': movie_id})
+                    db_info = db.films.find_one({'movie_id': movie_id})
                     if db_info and 'guild_avg' in db_info and db_info['rating_count'] != 0:
                         body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
                 body += '\n'
