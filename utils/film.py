@@ -1,6 +1,6 @@
 from discord import Embed
 
-def get_film_embed(lbx, film_keywords='', verbosity=0, film_id='', db=None):
+async def get_film_embed(lbx, film_keywords='', verbosity=0, film_id='', db=None):
     if film_keywords:
         film = get_search_result(lbx, film_keywords)
         if not film:
@@ -14,10 +14,12 @@ def get_film_embed(lbx, film_keywords='', verbosity=0, film_id='', db=None):
     title = f"{film_details['name']}"
     if 'releaseYear' in film_details:
         title += ' (' + str(film_details['releaseYear']) + ')'
+
+    description = await get_description(film_details, film_stats, verbosity, db)
     embed = Embed(
         title=title,
         url=get_link(film_details),
-        description=get_description(film_details, film_stats, verbosity, db),
+        description=description
     )
 
     if 'poster' in film_details:
@@ -40,7 +42,7 @@ def get_link(film_details):
     return None
 
 
-def get_description(film_details, film_stats, verbosity=0, db=None):
+async def get_description(film_details, film_stats, verbosity=0, db=None):
     description = ''
     if 'originalName' in film_details:
         description += f"_{film_details['originalName']}_\n"
@@ -71,9 +73,9 @@ def get_description(film_details, film_stats, verbosity=0, db=None):
         description += '\n'
     description += f"{human_count(film_stats['counts']['watches'])} watched\n"
 
-    if db:
+    if db.films:
         movie_id = get_link(film_details).split('/')[-2]
-        db_info = db.films.find_one({'movie_id': movie_id})
+        db_info = await db.films.find_one({'movie_id': movie_id})
         if db_info and 'guild_avg' in db_info:
             description += f"Server: **{0.5*db_info['guild_avg']:.2f}** from {db_info['rating_count']}\n"
 
@@ -102,7 +104,7 @@ def get_search_result(lbx, film_keywords):
     return search_response['items'][0]['film']
 
 
-def who_knows_embed(lbx, db, film_keywords):
+async def who_knows_embed(lbx, db, film_keywords):
     ratings = db.ratings
     films = db.films
     users = db.users
@@ -116,7 +118,7 @@ def who_knows_embed(lbx, db, film_keywords):
     movie_id = link.split('/')[-2]
 
     details = {'name': film_res['name']}
-    db_info = films.find_one({'movie_id': movie_id})
+    db_info = await films.find_one({'movie_id': movie_id})
 
     total, count = 0, 0
     for rating in ratings.find({'movie_id': movie_id}):
@@ -145,24 +147,15 @@ def who_knows_embed(lbx, db, film_keywords):
         details['poster_url'] = url
 
     avg = total/count if count > 0 else 0
-    film = {
-        'movie_id': movie_id,
-        'guild_avg': avg,
-        'rating_count': count
-    }
-    films.update_one({
-        'movie_id': movie_id
-    },
-    {
-    "$set": film
-    }, upsert=True)
+    details['movie_id'] = movie_id
+    details['guild_avg'] = avg
+    details['rating_count'] = count
+    await films.update_one({'movie_id': movie_id}, {"$set": details}, upsert=True)
 
     embed.set_footer(text=f"Server average: {avg:.2f}")
-
-    films.update_one({'movie_id': movie_id}, {'$set': details}, upsert=True)
     return embed
 
-def top_films_list(db, threshold):
+async def top_films_list(db, threshold):
     top_films = db.films.find(
         { 'rating_count': {'$gt': threshold-1}
     }).sort('guild_avg', -1)
@@ -172,7 +165,7 @@ def top_films_list(db, threshold):
     #     ]
     # )
     topf_short = []
-    for film in top_films[:200]:
+    async for film in top_films[:200]:
         movie_id = film['movie_id']
         movie_name = film['name'] if 'name' in film else ' '.join([r.capitalize() for r in movie_id.split('-') if not r.isdigit()])
         topf_short.append(f"[{movie_name}](https://letterboxd.com/film/{movie_id}): **{film['guild_avg']:.2f}** ({film['rating_count']})")

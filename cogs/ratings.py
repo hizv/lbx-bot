@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, menus
-import pymongo
+import motor.motor_asyncio as motor
 from aioshell import run
 from config import conn_url, SETTINGS
 from utils.film import who_knows_embed, top_films_list, get_link
@@ -32,7 +32,7 @@ class Ratings(commands.Cog):
     @commands.cooldown(1, 345600, commands.BucketType.guild)
     async def ssync(self, ctx):
         db_name = f'g{ctx.guild.id}'
-        client = pymongo.MongoClient(get_conn_url(db_name))
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
         users = db.users
 
@@ -44,7 +44,7 @@ class Ratings(commands.Cog):
                     "lb_id": row[1],
                     'lid': row[2]
                 }
-                users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
+                await users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
         await self.db.release(conn)
 
         async with ctx.typing():
@@ -66,13 +66,13 @@ class Ratings(commands.Cog):
                       help='Check *who knows* a film, and their ratings')
     async def whoknows(self, ctx, *, film_keywords):
         db_name = f'g{ctx.guild.id}'
-        client = pymongo.MongoClient(get_conn_url(db_name))
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
 
         if ctx.invoked_with.count(prefix) == 1:
             await usync(ctx, ctx.author)
 
-        embed = who_knows_embed(self.bot.lbx, db, film_keywords)
+        embed = await who_knows_embed(self.bot.lbx, db, film_keywords)
         if embed:
             await ctx.send(embed=embed)
         else:
@@ -87,9 +87,9 @@ class Ratings(commands.Cog):
             await ctx.send('At least 1 rating')
             return
         db_name = f'g{ctx.guild.id}'
-        client = pymongo.MongoClient(get_conn_url(db_name))
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        pages = menus.MenuPages(source=MySource(top_films_list(db, threshold)), clear_reactions_after=True)
+        pages = menus.MenuPages(source=MySource(await top_films_list(db, threshold)), clear_reactions_after=True)
         await pages.start(ctx)
 
     @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'],
@@ -138,7 +138,7 @@ class Ratings(commands.Cog):
 
         body = ''
         db_name = f'g{ctx.guild.id}'
-        client = pymongo.MongoClient(get_conn_url(db_name))
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
         role_name = ''
         async with ctx.typing():
@@ -151,7 +151,7 @@ class Ratings(commands.Cog):
                     body += f"({contrib['film']['releaseYear']}) "
                 if db.films:
                     movie_id = link.split('/')[-2]
-                    db_info = db.films.find_one({'movie_id': movie_id})
+                    db_info = await db.films.find_one({'movie_id': movie_id})
                     if db_info and 'guild_avg' in db_info and db_info['rating_count'] != 0:
                         body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
                 body += '\n'

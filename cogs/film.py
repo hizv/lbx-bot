@@ -4,7 +4,7 @@ from discord.ext import commands
 from fuzzywuzzy import process
 from imdbpie import Imdb
 from imdb import IMDb
-import pymongo
+import motor.motor_asyncio as motor
 import wikipedia
 from utils import api, diary, film
 from config import conn_url, SETTINGS
@@ -91,10 +91,10 @@ class Film(commands.Cog):
             async for guild in conn.cursor('SELECT id FROM public.guilds'):
                 if ctx.guild.id == guild[0]:
                     db_name = f'g{ctx.guild.id}'
-                    client = pymongo.MongoClient(get_conn_url(db_name))
+                    client = motor.AsyncIOMotorClient(get_conn_url(db_name))
                     db = client[db_name]
         await self.db.release(conn)
-        embed = film.get_film_embed(self.lbx, film_keywords, verbosity, db=db)
+        embed = await film.get_film_embed(self.lbx, film_keywords, verbosity, db=db)
         if not embed:
             await ctx.send(f"No film found matching: '{film_keywords}'")
         else:
@@ -141,7 +141,7 @@ class Film(commands.Cog):
             return
         random_film = watchlist['items'][random.randrange(0, quantity)]
 
-        await ctx.send(embed=film.get_film_embed(self.lbx, film_id=random_film['id']))
+        await ctx.send(embed=await film.get_film_embed(self.lbx, film_id=random_film['id']))
 
 
     @commands.command()
@@ -154,7 +154,7 @@ class Film(commands.Cog):
         L = await api.api_call(f'list/{list_id}/entries', params={'perPage': 100})
         size_L = len(L['items'])
         random_film = L['items'][random.randrange(0, size_L)]['film']
-        embed = film.get_film_embed(self.lbx, film_id=random_film['id'])
+        embed = await film.get_film_embed(self.lbx, film_id=random_film['id'])
         embed.set_author(name=lb_id, url=f'https://boxd.it/{list_id}')
         await ctx.send(embed=embed)
 

@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, menus
-import pymongo
+import motor.motor_asyncio as motor
 from utils.diary import get_lid
 from config import SETTINGS, conn_url
 
@@ -21,7 +21,7 @@ class Follow(commands.Cog):
     2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``''')
     async def follow(self, ctx, lb_id, member: discord.Member = None):
         db_name = f'g{ctx.guild.id}'
-        client = pymongo.MongoClient(get_conn_url(db_name))
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
         users = db.users
 
@@ -38,7 +38,7 @@ class Follow(commands.Cog):
                 "lb_id": lb_id,
                 'lid': lid
             }
-            users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
+            await users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
 
             await ctx.send(f"Added {lb_id}.")
             await self.bot.get_cog('Ratings').usync(ctx, member)
