@@ -21,7 +21,7 @@ async def get_diary_embed(dids):
         if d_entry['diaryDetails']['rewatch']:
             description += ' ↺'
         if 'review' in d_entry:
-            description += '\n```' + markdownify(d_entry['review']['text']) + '```'
+            description += '\n```' + markdownify(d_entry['review']['text'][:1600]) + '```'
         description += '\n'
     embed = discord.Embed(description=description)
     if 'poster' in film:

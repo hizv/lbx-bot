@@ -186,17 +186,20 @@ def main():
 
     # Update rating avg
         for movie_id in ratings.distinct('movie_id'):
-            total, count = 0, 0
+            total, r_count, ur_count = 0, 0, 0
             for rating in ratings.find({'movie_id': movie_id}):
                 rating_id = rating['rating_id']
                 if rating_id != -1:
                     total += rating_id
-                    count += 1
-            avg = total/count if count > 0 else 0
+                    r_count += 1
+                else:
+                    ur_count += 1
+            avg = total/r_count if r_count > 0 else 0
             film = {
                 'movie_id': movie_id,
                 'guild_avg': avg,
-                'rating_count': count
+                'rating_count': r_count,
+                'watch_count': (r_count + ur_count)
             }
             pprint(film)
             films.update_one({
@@ -217,17 +220,20 @@ def main():
 
         # Update rating avg
         for movie_id in ratings.find({'uid': int(sys.argv[2])}):
-            total, count = 0, 0
+            total, r_count, ur_count = 0, 0, 0
             for rating in ratings.find({'movie_id': movie_id}):
                 rating_id = rating['rating_id']
                 if rating_id != -1:
                     total += rating_id
-                    count += 1
-            avg = total/count if count > 0 else 0
+                    r_count += 1
+                else:
+                    ur_count += 1
+            avg = total/r_count if r_count > 0 else 0
             film = {
                 'movie_id': movie_id,
                 'guild_avg': avg,
-                'rating_count': count
+                'rating_count': r_count,
+                'watch_count': (r_count + ur_count)
             }
             pprint(film)
             films.update_one({

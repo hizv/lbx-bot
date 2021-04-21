@@ -73,7 +73,7 @@ async def get_description(film_details, film_stats, verbosity=0, db=None):
         description += '\n'
     description += f"{human_count(film_stats['counts']['watches'])} watched\n"
 
-    if db.films:
+    if db:
         movie_id = get_link(film_details).split('/')[-2]
         db_info = await db.films.find_one({'movie_id': movie_id})
         if db_info and 'guild_avg' in db_info:
@@ -120,15 +120,16 @@ async def who_knows_embed(lbx, db, film_keywords):
     details = {'name': film_res['name']}
     db_info = await films.find_one({'movie_id': movie_id})
 
-    total, count = 0, 0
-    for rating in ratings.find({'movie_id': movie_id}):
+    total, r_count, ur_count = 0, 0, 0
+    async for rating in ratings.find({'movie_id': movie_id}):
         lb_id = rating['lb_id']
         rating_id = rating['rating_id']
         if rating_id == -1:
             rating_id = '✓'
+            ur_count += 1
         else:
             total += rating_id
-            count += 1
+            r_count += 1
         description += f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n"
 
     title = f"Who knows {film_res['name']}"
@@ -146,10 +147,11 @@ async def who_knows_embed(lbx, db, film_keywords):
         embed.set_thumbnail(url=url)
         details['poster_url'] = url
 
-    avg = total/count if count > 0 else 0
+    avg = total/r_count if r_count > 0 else 0
     details['movie_id'] = movie_id
     details['guild_avg'] = avg
-    details['rating_count'] = count
+    details['rating_count'] = r_count
+    details['watch_count'] = r_count + ur_count
     await films.update_one({'movie_id': movie_id}, {"$set": details}, upsert=True)
 
     embed.set_footer(text=f"Server average: {avg:.2f}")

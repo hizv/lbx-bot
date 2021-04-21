@@ -118,6 +118,8 @@ ALTER TABLE {schema}.users OWNER to postgres;
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f"Missing argument, check {prefix}help")
 
+        print(error)
+
     @tasks.loop(minutes=20)
     async def check_feed(self):
         conn = await self.db.acquire()

@@ -103,7 +103,7 @@ class Ratings(commands.Cog):
                       w (Writer), to f (films).
                       Can be used once every minute.
                       Example: ``{prefix}fd lynch`` to get a list of films directed by David Lynch''')
-    @commands.cooldown(1,60,commands.BucketType.user)
+    @commands.cooldown(1,20,commands.BucketType.user)
     async def filmscrew(self, ctx, *, crew_keywords):
         role = ctx.invoked_with[-1].lower()
         search_request = {
@@ -149,11 +149,17 @@ class Ratings(commands.Cog):
                 body += f"[{contrib['film']['name']}]({link}) "
                 if 'releaseYear' in contrib['film']:
                     body += f"({contrib['film']['releaseYear']}) "
-                if db.films:
+                if db:
                     movie_id = link.split('/')[-2]
                     db_info = await db.films.find_one({'movie_id': movie_id})
-                    if db_info and 'guild_avg' in db_info and db_info['rating_count'] != 0:
-                        body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
+                    if db_info:
+                        if 'guild_avg' in db_info and db_info['rating_count'] != 0:
+                            body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
+                            if 'watch_count' in db_info:
+                                unrated = db_info['watch_count'] - db_info['rating_count']
+                                body += '**✓**'*unrated
+                        elif 'watch_count' in db_info:
+                            body += '\t' + '**✓**'*db_info['watch_count']
                 body += '\n'
 
         embed = discord.Embed(
