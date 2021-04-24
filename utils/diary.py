@@ -1,5 +1,6 @@
 import discord
 from markdownify import markdownify
+from fuzzywuzzy import process
 from .film import get_link
 from utils import api
 
@@ -33,7 +34,8 @@ async def get_lid(lbx, lb_id):
     m_result = lbx.search(search_request={
         'include': 'MemberSearchItem',
         'input': lb_id,
-        'perPage': 1
+        'perPage': 20
     })
-    lid = m_result['items'][0]['member']['id']
+    lid_list = { m['member']['username']:m['member']['id'] for m in m_result['items']}
+    lid = process.extractOne(lb_id, lid_list.keys())
     return lid

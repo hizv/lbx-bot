@@ -154,12 +154,12 @@ class Ratings(commands.Cog):
                     db_info = await db.films.find_one({'movie_id': movie_id})
                     if db_info:
                         if 'guild_avg' in db_info and db_info['rating_count'] != 0:
-                            body += f"\t**{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
+                            body += f" **{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
                             if 'watch_count' in db_info:
                                 unrated = db_info['watch_count'] - db_info['rating_count']
-                                body += '**✓**'*unrated
+                                body += ' ' + '✓'*unrated
                         elif 'watch_count' in db_info:
-                            body += '\t' + '**✓**'*db_info['watch_count']
+                            body += ' ' + '✓'*db_info['watch_count']
                 body += '\n'
 
         embed = discord.Embed(

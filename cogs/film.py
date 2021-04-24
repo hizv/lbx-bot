@@ -144,7 +144,7 @@ class Film(commands.Cog):
         await ctx.send(embed=await film.get_film_embed(self.lbx, film_id=random_film['id']))
 
 
-    @commands.command()
+    @commands.command(help=['Example: ``{prefix}lrand frymanjayce tspdt`` for https://letterboxd.com/frymanjayce/list/tspdt-starting-list/'])
     async def lrand(self, ctx, lb_id, *, keywords):
         lid = await diary.get_lid(self.lbx, lb_id)
         list_id = await get_list_id(lid, keywords)
@@ -152,6 +152,7 @@ class Film(commands.Cog):
             await ctx.send(f"No matching list for '{keywords}'")
             return
         L = await api.api_call(f'list/{list_id}/entries', params={'perPage': 100})
+        print(L['items'])
         size_L = len(L['items'])
         random_film = L['items'][random.randrange(0, size_L)]['film']
         embed = await film.get_film_embed(self.lbx, film_id=random_film['id'])

@@ -167,10 +167,14 @@ async def top_films_list(db, threshold):
     #     ]
     # )
     topf_short = []
-    async for film in top_films[:200]:
+    counter = 0
+    async for film in top_films:
+        if counter == 200:
+            break
         movie_id = film['movie_id']
         movie_name = film['name'] if 'name' in film else ' '.join([r.capitalize() for r in movie_id.split('-') if not r.isdigit()])
         topf_short.append(f"[{movie_name}](https://letterboxd.com/film/{movie_id}): **{film['guild_avg']:.2f}** ({film['rating_count']})")
+        counter += 1
 
     return topf_short
 
