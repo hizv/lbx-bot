@@ -37,5 +37,5 @@ async def get_lid(lbx, lb_id):
         'perPage': 20
     })
     lid_list = { m['member']['username']:m['member']['id'] for m in m_result['items']}
-    lid = process.extractOne(lb_id, lid_list.keys())
+    lid = process.extractOne(lb_id, lid_list.keys())[0]
     return lid
