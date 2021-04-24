@@ -122,6 +122,7 @@ class Film(commands.Cog):
     @commands.command(help='Get a random film from last 100 items watchlisted')
     async def wrand(self, ctx, *, lb_id=''):
         quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 101 else 100
+        lid = ''
         if not lb_id or lb_id.isdigit():
             conn = await self.db.acquire()
             query = f'''SELECT lid FROM g{ctx.guild.id}.users
@@ -129,6 +130,12 @@ class Film(commands.Cog):
                     '''
             lid = await conn.fetchval(query)
             await self.db.release(conn)
+        else:
+            lid = await diary.get_lid(self.lbx, lb_id)
+
+        if not lid:
+            await ctx.send('Error')
+            return
         member = self.lbx.member(member_id=lid)
 
         watchlist_request = {
