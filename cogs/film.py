@@ -126,7 +126,7 @@ class Film(commands.Cog):
         if not lb_id or lb_id.isdigit():
             conn = await self.db.acquire()
             query = f'''SELECT lid FROM g{ctx.guild.id}.users
-                        WHERE uid = '{ctx.author.id}'
+                        WHERE uid = {ctx.author.id}
                     '''
             lid = await conn.fetchval(query)
             await self.db.release(conn)

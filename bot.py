@@ -143,6 +143,7 @@ ALTER TABLE {schema}.users OWNER to postgres;
                     activity = await api.api_call(
                         path=f'member/{row[2]}/activity',
                         params=ratings_request)
+
                     if 'items' not in activity:
                         continue
 

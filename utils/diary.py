@@ -22,7 +22,10 @@ async def get_diary_embed(dids):
         if d_entry['diaryDetails']['rewatch']:
             description += ' ↺'
         if 'review' in d_entry:
-            description += '\n```' + markdownify(d_entry['review']['text'][:1600]) + '```'
+            if review['containsSpoilers']:
+                description += '\n```Contains spoilers```'
+            else:
+                description += '\n```' + markdownify(d_entry['review']['text'][:1600]) + '```'
         description += '\n'
     embed = discord.Embed(description=description)
     if 'poster' in film:
@@ -37,5 +40,5 @@ async def get_lid(lbx, lb_id):
         'perPage': 20
     })
     lid_list = { m['member']['username']:m['member']['id'] for m in m_result['items']}
-    lid = process.extractOne(lb_id, lid_list.keys())[0]
-    return lid
+    match = process.extractOne(lb_id, lid_list.keys())
+    return lid_list[match[0]]
