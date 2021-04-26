@@ -22,7 +22,7 @@ async def get_diary_embed(dids):
         if d_entry['diaryDetails']['rewatch']:
             description += ' ↺'
         if 'review' in d_entry:
-            if review['containsSpoilers']:
+            if d_entry['review']['containsSpoilers']:
                 description += '\n```Contains spoilers```'
             else:
                 description += '\n```' + markdownify(d_entry['review']['text'][:1600]) + '```'

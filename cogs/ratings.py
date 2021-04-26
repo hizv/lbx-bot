@@ -27,8 +27,8 @@ class Ratings(commands.Cog):
         self.bot = bot
         self.db = bot.db
 
-    @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every four days.')
-    @commands.cooldown(1, 345600, commands.BucketType.guild)
+    @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every two days.')
+    @commands.cooldown(1, 172800, commands.BucketType.guild)
     async def ssync(self, ctx):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
@@ -50,6 +50,11 @@ class Ratings(commands.Cog):
             r = await run(f'python3 update.py {db_name}')
             await ctx.send(f'Done updating {ctx.guild.name}')
 
+    @ssync.error
+    async def ssync_handler(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(f'On cooldown, try again in {error.retry_after:.1f}s. Try using usync if just one member')
+
     @commands.command(aliases=['us'], help='Update user ratings. Mention someone to update their ratings.')
     @commands.cooldown(1,3600,commands.BucketType.user)
     async def usync(self, ctx, member: discord.Member = None):
@@ -59,6 +64,11 @@ class Ratings(commands.Cog):
         async with ctx.typing():
             await run(f'python3 update.py {db_name} {member.id}')
             await ctx.send(f'Done updating {member.name}')
+
+    @usync.error
+    async def usync_handler(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(f'On cooldown, try again in {error.retry_after:.1f}s')
 
 
     @commands.command(aliases=['wk', 'seen', prefix+'wk'],
@@ -167,6 +177,10 @@ class Ratings(commands.Cog):
         )
         await ctx.send(embed=embed)
 
+    @filmscrew.error
+    async def filmscrew_handler(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(f'On cooldown, try again in {error.retry_after:.1f}s')
 
 def setup(bot):
     bot.add_cog(Ratings(bot))
