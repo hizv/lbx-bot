@@ -49,10 +49,6 @@ class Bot(commands.AutoShardedBot):
         super().__init__(*args, **kwargs)
 
         self.db = kwargs.pop('db')
-        self.lbx = letterboxd.new(
-            api_key=SETTINGS['letterboxd']['api_key'],
-            api_secret=SETTINGS['letterboxd']['api_secret']
-        )
         self.prev_time = datetime.utcnow()
         self.check_feed.start()
 

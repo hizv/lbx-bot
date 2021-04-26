@@ -29,7 +29,7 @@ class Follow(commands.Cog):
         try:
             conn = await self.db.acquire()
             async with conn.transaction():
-                lid = await get_lid(self.bot.lbx, lb_id)
+                lid = await get_lid(lb_id)
                 chan_id = await conn.fetchval(f'SELECT channel_id FROM public.guilds WHERE id={ctx.guild.id}')
                 await self.db.execute(f'''INSERT INTO {db_name}.users (uid, lb_id, lid)
                                      VALUES ({member.id}, $1, $2)''', lb_id, lid)

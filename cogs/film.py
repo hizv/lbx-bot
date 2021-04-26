@@ -79,7 +79,6 @@ class Film(commands.Cog):
         self.db = bot.db
         self.imdb = Imdb()
         self.ia = IMDb()
-        self.lbx = bot.lbx
 
     @commands.command(help=f'search a film\n{prefix}{prefix}f to also get the synopsis',
                 aliases=['f', prefix + 'f'])
@@ -94,7 +93,7 @@ class Film(commands.Cog):
                     client = motor.AsyncIOMotorClient(get_conn_url(db_name))
                     db = client[db_name]
         await self.db.release(conn)
-        embed = await film.get_film_embed(self.lbx, film_keywords, verbosity, db=db)
+        embed = await film.get_film_embed(film_keywords, verbosity, db=db)
         if not embed:
             await ctx.send(f"No film found matching: '{film_keywords}'")
         else:
@@ -112,7 +111,7 @@ class Film(commands.Cog):
             'include': 'ContributorSearchItem'
         }
 
-        res = self.lbx.search(search_request=search_request)
+        res = await api.api_call('search', params=search_request)
         res = res['items'][0]['contributor']
         if res:
             await ctx.send(embed=get_crew_embed(self.imdb, self.ia, res, verbosity))
@@ -131,29 +130,28 @@ class Film(commands.Cog):
             lid = await conn.fetchval(query)
             await self.db.release(conn)
         else:
-            lid = await diary.get_lid(self.lbx, lb_id)
+            lid = await diary.get_lid(lb_id)
 
         if not lid:
             await ctx.send('Error')
             return
-        member = self.lbx.member(member_id=lid)
 
         watchlist_request = {
             'perPage': quantity,
             'memberRelationship': 'InWatchlist',
         }
-        watchlist = member.watchlist(watchlist_request=watchlist_request)
+        watchlist = await api.api_call('member/{lid}/watchlist', params=watchlist_request)
         if not watchlist['items']:
             await ctx.send('Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
             return
         random_film = watchlist['items'][random.randrange(0, quantity)]
 
-        await ctx.send(embed=await film.get_film_embed(self.lbx, film_id=random_film['id']))
+        await ctx.send(embed=await film.get_film_embed(film_id=random_film['id']))
 
 
     @commands.command(help='Example: ``{prefix}lrand frymanjayce tspdt`` for https://letterboxd.com/frymanjayce/list/tspdt-starting-list/')
     async def lrand(self, ctx, lb_id, *, keywords):
-        lid = await diary.get_lid(self.lbx, lb_id)
+        lid = await diary.get_lid(lb_id)
         list_id = await get_list_id(lid, keywords)
         if not list_id:
             await ctx.send(f"No matching list for '{keywords}'")
@@ -162,7 +160,7 @@ class Film(commands.Cog):
         print(L['items'])
         size_L = len(L['items'])
         random_film = L['items'][random.randrange(0, size_L)]['film']
-        embed = await film.get_film_embed(self.lbx, film_id=random_film['id'])
+        embed = await film.get_film_embed(film_id=random_film['id'])
         embed.set_author(name=lb_id, url=f'https://boxd.it/{list_id}')
         await ctx.send(embed=embed)
 

@@ -1,15 +1,14 @@
 from discord import Embed
+from utils.api import api_call
 
-async def get_film_embed(lbx, film_keywords='', verbosity=0, film_id='', db=None):
+async def get_film_embed(film_keywords='', verbosity=0, film_id='', db=None):
     if film_keywords:
-        film = get_search_result(lbx, film_keywords)
+        film = await get_search_result(film_keywords)
         if not film:
             return None
-        film_instance = lbx.film(film['id'])
-    if film_id:
-        film_instance = lbx.film(film_id)
-    film_details = film_instance.details()
-    film_stats = film_instance.statistics()
+        film_id = film['id']
+    film_details = await api_call(f'film/{film_id}')
+    film_stats = await api_call(f'film/{film_id}/statistics')
 
     title = f"{film_details['name']}"
     if 'releaseYear' in film_details:
@@ -90,27 +89,27 @@ async def get_description(film_details, film_stats, verbosity=0, db=None):
     return description
 
 
-def get_search_result(lbx, film_keywords):
+async def get_search_result(film_keywords):
     search_request = {
         'perPage': 1,
         'input': film_keywords,
         'include': 'FilmSearchItem'
     }
 
-    search_response = lbx.search(search_request=search_request)
+    search_response = await api_call('search', params=search_request)
 
     if not search_response['items']:
         return None
     return search_response['items'][0]['film']
 
 
-async def who_knows_embed(lbx, db, film_keywords):
+async def who_knows_embed(db, film_keywords):
     ratings = db.ratings
     films = db.films
     users = db.users
     description = ''
 
-    film_res = get_search_result(lbx, film_keywords)
+    film_res = await get_search_result(film_keywords)
     if not film_res:
         return None
 

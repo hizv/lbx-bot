@@ -26,7 +26,6 @@ class Ratings(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
-        self.lbx = bot.lbx
 
     @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every four days.')
     @commands.cooldown(1, 345600, commands.BucketType.guild)
@@ -72,7 +71,7 @@ class Ratings(commands.Cog):
         if ctx.invoked_with.count(prefix) == 1:
             await usync(ctx, ctx.author)
 
-        embed = await who_knows_embed(self.bot.lbx, db, film_keywords)
+        embed = await who_knows_embed(db, film_keywords)
         if embed:
             await ctx.send(embed=embed)
         else:
@@ -112,7 +111,7 @@ class Ratings(commands.Cog):
             'include': 'ContributorSearchItem'
         }
 
-        res = self.lbx.search(search_request=search_request)
+        res = await api.api_call('search', params=search_request)
         crew = res['items'][0]['contributor']
         if not crew:
             await ctx.send(f'Nobody found matching {crew_keywords}')

@@ -33,8 +33,8 @@ async def get_diary_embed(dids):
 
     return embed
 
-async def get_lid(lbx, lb_id):
-    m_result = lbx.search(search_request={
+async def get_lid(lb_id):
+    m_result = await api.api_call('search', params={
         'include': 'MemberSearchItem',
         'input': lb_id,
         'perPage': 20
