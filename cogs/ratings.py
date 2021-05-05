@@ -65,7 +65,8 @@ class Ratings(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        db.films.remove()
+        await db.films.remove()
+        await ctx.send('Hard reset finished')
 
     @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every two days.')
     @commands.cooldown(1, 172800, commands.BucketType.guild)
@@ -86,8 +87,8 @@ class Ratings(commands.Cog):
                 await users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
         await self.db.release(conn)
 
-        db.films.create_index({'guild_avg', -1})
-        users.create_index( { 'uid': 1, 'lb_id': 1 }, { 'unique': True, 'dropDups': True } )
+        await db.films.create_index({'guild_avg', -1})
+        await users.create_index( { 'uid': 1, 'lb_id': 1 }, { 'unique': True, 'dropDups': True } )
 
         async with ctx.typing():
             r = await run(f'python3 update.py {db_name}')

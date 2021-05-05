@@ -83,13 +83,15 @@ class Follow(commands.Cog):
     @commands.command(help='List followed users', aliases=[f'{prefix}follow'])
     async def following(self, ctx):
         follow_str = ''
-        conn = await self.db.acquire()
-        async with conn.transaction():
-            async for row in conn.cursor(f'SELECT lb_id, uid FROM g{ctx.guild.id}.users'):
-                user = self.bot.get_user(row[1])
-                display_name = row[0] if not user else user.display_name
-                follow_str += f'[{display_name}](https://letterboxd.com/{row[0]}), '
-        await self.db.release(conn)
+
+        db_name = f'g{ctx.guild.id}'
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
+        db = client[db_name]
+        async for user in db.users.find({}):
+            user = self.bot.get_user(user['uid'])
+            lb_id = user['lb_id']
+            display_name = lb_id if not user else user.display_name
+            follow_str += f'[{display_name}](https://letterboxd.com/{lb_id}), '
 
         embed = None
         embed = discord.Embed(
