@@ -50,7 +50,7 @@ class Bot(commands.AutoShardedBot):
 
         self.db = kwargs.pop('db')
         self.prev_time = datetime.utcnow()
-        self.check_feed.start()
+        #self.check_feed.start()
 
     async def on_ready(self):
         print(f'Logged in {len(self.guilds)} servers as {self.user.name}')

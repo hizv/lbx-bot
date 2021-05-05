@@ -16,7 +16,6 @@ class Follow(commands.Cog):
         self.db = bot.db
 
     @commands.command(help=f'''Follow your diary. Takes your LB username as input.
-    Must set a channel using ``{prefix}setchan`` for entries to start popping.
     Examples:\n1. To add yourself if your Letterboxd username is 'mp4' (you don't need to be a mod): ``{prefix}follow mp4``
     2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``''')
     async def follow(self, ctx, lb_id, member: discord.Member = None):
@@ -58,10 +57,17 @@ class Follow(commands.Cog):
                                     WHERE lb_id='{lb_id}'
                                 ''')
         await self.db.release(conn)
+
+        db_name = f'g{ctx.guild.id}'
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
+        db = client[db_name]
+        await db.users.delete_many({'lb_id': lb_id})
+        await db.ratings.delete_many({'lb_id': lb_id})
+
         await ctx.send(f"Removed {lb_id}.")
 
 
-    @commands.command(aliases=['setchan'], help='Set the channel where updates appear.')
+    @commands.command(aliases=['setchan'], help='Set the channel where updates appear.', enabled=False)
     @commands.has_guild_permissions(manage_channels=True)
     async def setchannel(self, ctx, channel: discord.TextChannel):
         conn = await self.db.acquire()
@@ -80,19 +86,11 @@ class Follow(commands.Cog):
                 user = self.bot.get_user(row[1])
                 display_name = row[0] if not user else user.display_name
                 follow_str += f'[{display_name}](https://letterboxd.com/{row[0]}), '
-
-        chan_id = await conn.fetchval(f'SELECT channel_id FROM public.guilds WHERE id={ctx.guild.id}')
         await self.db.release(conn)
 
         embed = None
-        if not chan_id:
-           await ctx.send(f"No follow channel set. Will not post updates. See {prefix}help setchan for details.")
-           embed = discord.Embed(
-               description=f'Will sync the following users on {prefix}ssync:\n{follow_str}'
-           )
-        else:
-            embed = discord.Embed(
-            description=f'Following these users in {self.bot.get_channel(chan_id).mention}\n' + follow_str[:-2]
+        embed = discord.Embed(
+            description=f'Will sync the following users on {prefix}ssync:\n{follow_str}'
         )
         await ctx.send(embed=embed)
 

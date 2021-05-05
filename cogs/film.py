@@ -140,11 +140,11 @@ class Film(commands.Cog):
             'perPage': quantity,
             'memberRelationship': 'InWatchlist',
         }
-        watchlist = await api.api_call('member/{lid}/watchlist', params=watchlist_request)
+        watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
         if not watchlist['items']:
             await ctx.send('Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
             return
-        random_film = watchlist['items'][random.randrange(0, quantity)]
+        random_film = watchlist['items'][random.randrange(0, quantity-1)]
 
         await ctx.send(embed=await film.get_film_embed(film_id=random_film['id']))
 
