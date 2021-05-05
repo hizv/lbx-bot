@@ -103,11 +103,10 @@ async def get_search_result(film_keywords):
     return search_response['items'][0]['film']
 
 
-async def who_knows_embed(db, film_keywords):
+async def who_knows_list(db, film_keywords):
     ratings = db.ratings
     films = db.films
     users = db.users
-    description = ''
 
     film_res = await get_search_result(film_keywords)
     if not film_res:
@@ -116,10 +115,11 @@ async def who_knows_embed(db, film_keywords):
     link = get_link(film_res)
     movie_id = link.split('/')[-2]
 
-    details = {'name': film_res['name']}
+    details = {'name': film_res['name'], 'link': link}
     db_info = await films.find_one({'movie_id': movie_id})
 
     total, r_count, ur_count = 0, 0, 0
+    wk_list = []
     async for rating in ratings.find({'movie_id': movie_id}):
         lb_id = rating['lb_id']
         rating_id = rating['rating_id']
@@ -129,21 +129,15 @@ async def who_knows_embed(db, film_keywords):
         else:
             total += rating_id
             r_count += 1
-        description += f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n"
+        wk_list.append(f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n")
 
     title = f"Who knows {film_res['name']}"
     if 'releaseYear' in film_res:
         title += ' (' + str(film_res['releaseYear']) + ')'
         details['releaseYear'] = film_res['releaseYear']
 
-    embed = Embed(
-        title=title,
-        url=link,
-        description=description
-    )
     if 'poster' in film_res:
         url = film_res['poster']['sizes'][-1]['url']
-        embed.set_thumbnail(url=url)
         details['poster_url'] = url
 
     avg = total/r_count if r_count > 0 else 0
@@ -153,18 +147,13 @@ async def who_knows_embed(db, film_keywords):
     details['watch_count'] = r_count + ur_count
     await films.update_one({'movie_id': movie_id}, {"$set": details}, upsert=True)
 
-    embed.set_footer(text=f"Server average: {avg:.2f}")
-    return embed
+    return title, details, wk_list
 
 async def top_films_list(db, threshold):
     top_films = db.films.find(
         { 'rating_count': {'$gt': threshold-1}
     }).sort('guild_avg', -1)
-    # .aggregate(
-    #     [
-    #        { '$sort': {'guild_avg': -1 } }
-    #     ]
-    # )
+
     topf_short = []
     counter = 0
     async for film in top_films:

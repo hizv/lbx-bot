@@ -3,7 +3,7 @@ from discord.ext import commands, menus
 import motor.motor_asyncio as motor
 from aioshell import run
 from config import conn_url, SETTINGS
-from utils.film import who_knows_embed, top_films_list, get_link
+from utils.film import who_knows_list, top_films_list, get_link
 from utils import api
 
 prefix = SETTINGS['prefix']
@@ -21,6 +21,39 @@ class MySource(menus.ListPageSource):
         return discord.Embed(
             description=description
         )
+
+class SeenSource(menus.ListPageSource):
+    def __init__(self, title, details, data):
+        super().__init__(data, per_page=20)
+        self.title = title
+        self.details = details
+
+    async def format_page(self, menu, entries):
+        offset = menu.current_page * self.per_page
+        description = '\n'.join(f'{i+1}. {v}' for i, v in enumerate(entries, start=offset))
+        embed = discord.Embed(
+            title=self.title,
+            description=description,
+            url=self.details['link']
+        )
+
+        avg = self.details['guild_avg']
+        r_count = self.details['rating_count']
+        w_count = self.details['watch_count']
+        footer_text = ''
+        if avg != 0.0:
+            footer_text += f"Server average: {avg:.2f} from {r_count} members"
+            if w_count > 0:
+                footer_text += ', '
+        if w_count > 0:
+            footer_text += f"{w_count} watched"
+        embed.set_footer(text=footer_text)
+
+
+        if 'poster_url' in self.details:
+            embed.set_thumbnail(url=self.details['poster_url'])
+
+        return embed
 
 class Ratings(commands.Cog):
     def __init__(self, bot):
@@ -81,9 +114,10 @@ class Ratings(commands.Cog):
         if ctx.invoked_with.count(prefix) == 1:
             await usync(ctx, ctx.author)
 
-        embed = await who_knows_embed(db, film_keywords)
-        if embed:
-            await ctx.send(embed=embed)
+        wk_list = await who_knows_list(db, film_keywords)
+        if wk_list:
+            pages = menus.MenuPages(source=MySource(wk_list, clear_reactions_after=True))
+            await pages.start(ctx)
         else:
             await ctx.send(f"No film found matching '{film_keywords}'")
 
