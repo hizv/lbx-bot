@@ -62,8 +62,11 @@ class Follow(commands.Cog):
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
         await db.users.delete_many({'lb_id': lb_id})
-        await db.ratings.delete_many({'lb_id': lb_id})
+        user_ratings = db.ratings.find({'lb_id': lb_id})
+        async for rating in user_ratings:
+            await db.films.delete_one({'movie_id': rating['movie_id']})
 
+        await db.films.delete_many({'lb_id': lb_id})
         await ctx.send(f"Removed {lb_id}.")
 
 

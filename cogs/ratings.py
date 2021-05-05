@@ -42,7 +42,7 @@ class SeenSource(menus.ListPageSource):
         w_count = self.details['watch_count']
         footer_text = ''
         if avg != 0.0:
-            footer_text += f"Server average: {avg:.2f} from {r_count} members"
+            footer_text += f"{avg:.2f} from {r_count} members"
             if w_count > 0:
                 footer_text += ', '
         if w_count > 0:
