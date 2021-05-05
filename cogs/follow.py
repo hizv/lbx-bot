@@ -66,7 +66,7 @@ class Follow(commands.Cog):
         async for rating in user_ratings:
             await db.films.delete_one({'movie_id': rating['movie_id']})
 
-        await db.films.delete_many({'lb_id': lb_id})
+        await db.ratings.delete_many({'lb_id': lb_id})
         await ctx.send(f"Removed {lb_id}.")
 
 
