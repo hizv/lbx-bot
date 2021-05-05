@@ -129,7 +129,7 @@ async def who_knows_list(db, film_keywords):
         else:
             total += rating_id
             r_count += 1
-        wk_list.append(f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**\n")
+        wk_list.append(f"[{lb_id}](https://letterboxd.com/{lb_id}) **{rating_id}**")
 
     title = f"Who knows {film_res['name']}"
     if 'releaseYear' in film_res:

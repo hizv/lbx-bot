@@ -114,9 +114,9 @@ class Ratings(commands.Cog):
         if ctx.invoked_with.count(prefix) == 1:
             await usync(ctx, ctx.author)
 
-        wk_list = await who_knows_list(db, film_keywords)
-        if wk_list:
-            pages = menus.MenuPages(source=MySource(wk_list, clear_reactions_after=True))
+        title, details, wk_list = await who_knows_list(db, film_keywords)
+        if title:
+            pages = menus.MenuPages(source=SeenSource(title, details, wk_list), clear_reactions_after=True)
             await pages.start(ctx)
         else:
             await ctx.send(f"No film found matching '{film_keywords}'")
