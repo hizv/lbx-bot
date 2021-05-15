@@ -65,7 +65,8 @@ class Ratings(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        await db.films.remove()
+        async with ctx.typing():
+            await db.films.delete_many({})
         await ctx.send('Hard reset finished')
 
     @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every two days.')
@@ -86,9 +87,6 @@ class Ratings(commands.Cog):
                 }
                 await users.update_one({"lb_id": user["lb_id"]}, {"$set": user}, upsert=True)
         await self.db.release(conn)
-
-        await db.films.create_index({'guild_avg', -1})
-        await users.create_index( { 'uid': 1, 'lb_id': 1 }, { 'unique': True, 'dropDups': True } )
 
         async with ctx.typing():
             r = await run(f'python3 update.py {db_name}')
@@ -147,7 +145,7 @@ class Ratings(commands.Cog):
         await pages.start(ctx)
 
     @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'],
-                      help=f'''NOTE: filmscrew is just a placeholder for the aliases. DO NOT USE filmscrew by itself. Use the aliases as follows.
+                      help=f'''NOTE: filmscrew is just a placeholder for the aliases. DO NOT use filmscrew by itself. Use the aliases as follows.
                       Get the server's ratings for a crew by appending
                       a (Actor),
                       c (Composer),
@@ -182,7 +180,7 @@ class Ratings(commands.Cog):
         }
 
         contrib_req = {
-            'perPage': 20,
+            'perPage': 60,
             'type': TYPE_CONTRIB[role]
         }
         res = await api.api_call(f"contributor/{crew['id']}/contributions", params=contrib_req)
@@ -190,16 +188,16 @@ class Ratings(commands.Cog):
             await ctx.send('Connection to Letterboxd failed')
             return
 
-        body = ''
+        clist, details = {}, {'rating_count': 0, 'watch_count': 0}
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
         role_name = ''
         async with ctx.typing():
             for contrib in res['items']:
+                body = ''
                 role_name = contrib['type']
                 link = get_link(contrib['film'])
-                details = {'name': contrib['film']['name']}
                 body += f"[{contrib['film']['name']}]({link}) "
                 if 'releaseYear' in contrib['film']:
                     body += f"({contrib['film']['releaseYear']}) "
@@ -209,18 +207,25 @@ class Ratings(commands.Cog):
                     if db_info:
                         if 'guild_avg' in db_info and db_info['rating_count'] != 0:
                             body += f" **{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
+                            details['rating_count'] += db_info['rating_count']
                             if 'watch_count' in db_info:
                                 unrated = db_info['watch_count'] - db_info['rating_count']
                                 body += ' ' + '✓'*unrated
+                                details['watch_count'] += db_info['watch_count']
                         elif 'watch_count' in db_info:
                             body += ' ' + '✓'*db_info['watch_count']
-                body += '\n'
+                            details['watch_count'] += db_info['watch_count']
+                    clist[body] = db_info['guild_avg']
+                else:
+                    clist[body] = -1
 
-        embed = discord.Embed(
-            title=f"{role_name} {crew['name']}",
-            description=body
-        )
-        await ctx.send(embed=embed)
+        crew_list = [k for k, v in sorted(clist.items(), key=lambda item: item[1], reverse=True)]
+        details['link'] = 'https://boxd.it/' + crew['id']
+        details['guild_avg'] = sum(clist.values())/len(clist.values())
+
+        title=f"{role_name} {crew['name']}",
+        pages = menus.MenuPages(source=SeenSource(title, details, crew_list), clear_reactions_after=True)
+        await pages.start(ctx)
 
     @filmscrew.error
     async def filmscrew_handler(self, ctx, error):

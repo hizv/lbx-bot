@@ -120,7 +120,7 @@ class Film(commands.Cog):
 
     @commands.command(help='Get a random film from last 100 items watchlisted')
     async def wrand(self, ctx, *, lb_id=''):
-        quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 101 else 100
+        quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 501 else 500
         lid = ''
         if not lb_id or lb_id.isdigit():
             conn = await self.db.acquire()
@@ -144,7 +144,15 @@ class Film(commands.Cog):
         if not watchlist['items']:
             await ctx.send(f'Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
             return
-        random_film = watchlist['items'][random.randrange(0, quantity-1)]
+
+        full_watchlist = watchlist
+        while 'next' in watchlist:
+            params['next'] = watchlist['next']
+            watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
+            full_watchlist |= watchlist
+
+
+        random_film = full_watchlist['items'][random.randrange(0, quantity)]
 
         await ctx.send(embed=await film.get_film_embed(film_id=random_film['id']))
 

@@ -61,12 +61,13 @@ class Follow(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        await db.users.delete_many({'lb_id': lb_id})
-        user_ratings = db.ratings.find({'lb_id': lb_id})
-        async for rating in user_ratings:
-            await db.films.delete_one({'movie_id': rating['movie_id']})
+        async with ctx.typing():
+            await db.users.delete_many({'lb_id': lb_id})
+            user_ratings = db.ratings.find({'lb_id': lb_id})
+            async for rating in user_ratings:
+                await db.films.delete_one({'movie_id': rating['movie_id']})
 
-        await db.ratings.delete_many({'lb_id': lb_id})
+            await db.ratings.delete_many({'lb_id': lb_id})
         await ctx.send(f"Removed {lb_id}.")
 
 
@@ -88,9 +89,9 @@ class Follow(commands.Cog):
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
         async for user in db.users.find({}):
-            user = self.bot.get_user(user['uid'])
+            discord_user = self.bot.get_user(user['uid'])
             lb_id = user['lb_id']
-            display_name = lb_id if not user else user.display_name
+            display_name = lb_id if not discord_user else discord_user.display_name
             follow_str += f'[{display_name}](https://letterboxd.com/{lb_id}), '
 
         embed = None

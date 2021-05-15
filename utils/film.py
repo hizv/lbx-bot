@@ -120,7 +120,7 @@ async def who_knows_list(db, film_keywords):
 
     total, r_count, ur_count = 0, 0, 0
     wk_list = []
-    async for rating in ratings.find({'movie_id': movie_id}):
+    async for rating in ratings.find({'movie_id': movie_id}).sort('rating_id', -1):
         lb_id = rating['lb_id']
         rating_id = rating['rating_id']
         if rating_id == -1:
