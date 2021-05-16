@@ -215,15 +215,16 @@ class Ratings(commands.Cog):
                         elif 'watch_count' in db_info:
                             body += ' ' + '✓'*db_info['watch_count']
                             details['watch_count'] += db_info['watch_count']
-                    clist[body] = db_info['guild_avg']
+                        clist[body] = db_info['guild_avg']
                 else:
                     clist[body] = -1
 
         crew_list = [k for k, v in sorted(clist.items(), key=lambda item: item[1], reverse=True)]
+        print(crew_list)
         details['link'] = 'https://boxd.it/' + crew['id']
         details['guild_avg'] = sum(clist.values())/len(clist.values())
 
-        title=f"{role_name} {crew['name']}",
+        title=f"{role_name} {crew['name']}"
         pages = menus.MenuPages(source=SeenSource(title, details, crew_list), clear_reactions_after=True)
         await pages.start(ctx)
 

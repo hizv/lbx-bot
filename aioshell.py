@@ -25,8 +25,6 @@ async def run(shell_command):
     stdout, stderr = await p.communicate()
     code = p.returncode
     print(f'[{shell_command!r} exited with {code}]')
-    if stdout:
-        print(f'[stdout]\n{stdout.decode()}')
     if stderr:
         print(f'[stderr]\n{stderr.decode()}')
 

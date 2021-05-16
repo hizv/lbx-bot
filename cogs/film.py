@@ -1,3 +1,4 @@
+import aiohttp
 import random
 import discord
 from discord.ext import commands
@@ -5,6 +6,7 @@ from fuzzywuzzy import process
 from imdbpie import Imdb
 from imdb import IMDb
 import motor.motor_asyncio as motor
+from parsel import Selector
 import wikipedia
 from utils import api, diary, film
 from config import conn_url, SETTINGS
@@ -118,43 +120,82 @@ class Film(commands.Cog):
         else:
             await ctx.send(f"No one matches '{crew_keywords}'")
 
-    @commands.command(help='Get a random film from last 100 items watchlisted')
-    async def wrand(self, ctx, *, lb_id=''):
-        quantity = int(lb_id) if lb_id.isdigit() and int(lb_id) < 501 else 500
-        lid = ''
-        if not lb_id or lb_id.isdigit():
-            conn = await self.db.acquire()
-            query = f'''SELECT lid FROM g{ctx.guild.id}.users
-                        WHERE uid = {ctx.author.id}
-                    '''
-            lid = await conn.fetchval(query)
-            await self.db.release(conn)
-        else:
-            lid = await diary.get_lid(lb_id)
+    @commands.command(help='Sync your watchlist items')
+    async def wsync(self, ctx, wsize=''):
+        conn = await self.db.acquire()
+        query = f'''SELECT lid FROM g{ctx.guild.id}.users
+                    WHERE uid = {ctx.author.id}
+                '''
+        lid = await conn.fetchval(query)
+        query = f'''SELECT lb_id FROM g{ctx.guild.id}.users
+                    WHERE uid = {ctx.author.id}
+                '''
+        lb_id = await conn.fetchval(query)
+        await self.db.release(conn)
 
         if not lid:
-            await ctx.send('Error')
+            await ctx.send(f'Error, try setting your LB ID using {prefix}follow')
             return
 
         watchlist_request = {
-            'perPage': quantity,
+            'perPage': 100,
             'memberRelationship': 'InWatchlist',
         }
-        watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
-        if not watchlist['items']:
-            await ctx.send(f'Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
-            return
 
-        full_watchlist = watchlist
-        while 'next' in watchlist:
-            params['next'] = watchlist['next']
+        async with ctx.typing():
+            async with aiohttp.ClientSession() as cs:
+                async with cs.get(f'https://letterboxd.com/{lb_id}/watchlist') as r:
+                    if r.status >= 400 and not wsize:
+                        await ctx.send(f'Please manually add your watchlist size using {prefix}wsync (size)')
+                        return
+                    else:
+                        selector = Selector(text=await r.text())
+                        wsize = int(selector.css('span.watchlist-count')[0].get().split('>')[1].split('\xa0')[0])
             watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
-            full_watchlist |= watchlist
+            film_ids = [film['id'] for film in watchlist['items']]
+            if not watchlist['items']:
+                await ctx.send(f'Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
+                return
 
+            added = len(watchlist['items'])
+            while added < wsize:
+                added += 100
+                print(film_ids)
+                watchlist_request['next'] = watchlist['next']
+                watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
+                film_ids += [film['id'] for film in watchlist['items']]
 
-        random_film = full_watchlist['items'][random.randrange(0, quantity)]
+            db_name = f'g{ctx.guild.id}'
+            client = motor.AsyncIOMotorClient(get_conn_url(db_name))
+            db = client[db_name]
+            w_details = { 'wlist': film_ids, 'wsize': wsize}
+            await db.users.update_one({
+                'lid': lid
+            }, {
+                '$set': w_details
+            }, upsert=True)
 
-        await ctx.send(embed=await film.get_film_embed(film_id=random_film['id']))
+        await ctx.send(f'Done updating watchlist for {lb_id}')
+
+    @commands.command(help='Get a random film from last 100 items watchlisted')
+    async def wrand(self, ctx, *, lb_id=''):
+        if not lb_id:
+            conn = await self.db.acquire()
+            query = f'''SELECT lb_id FROM g{ctx.guild.id}.users
+                        WHERE uid = {ctx.author.id}
+                    '''
+            lb_id = await conn.fetchval(query)
+            await self.db.release(conn)
+
+        db_name = f'g{ctx.guild.id}'
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
+        db = client[db_name]
+        user = await db.users.find_one({'lb_id': lb_id})
+        if 'wlist' in user:
+            random_film_id = user['wlist'][random.randrange(0, user['wsize'])]
+            await ctx.send(embed=await film.get_film_embed(film_id=random_film_id))
+        else:
+            await ctx.send(f'Please run {prefix}wsync')
 
 
     @commands.command(help='Example: ``{prefix}lrand frymanjayce tspdt`` for https://letterboxd.com/frymanjayce/list/tspdt-starting-list/')
