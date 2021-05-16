@@ -69,6 +69,7 @@ class Ratings(commands.Cog):
         await ctx.send('Hard reset finished')
 
     @commands.command(aliases=['ss'], help='Update server ratings. Use restricted to once every two days.')
+    @commands.has_guild_permissions(manage_messages=True)
     @commands.cooldown(1, 172800, commands.BucketType.guild)
     async def ssync(self, ctx):
         db_name = f'g{ctx.guild.id}'

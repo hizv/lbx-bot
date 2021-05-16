@@ -18,6 +18,7 @@ class Follow(commands.Cog):
     @commands.command(help=f'''Follow your diary. Takes your LB username as input.
     Examples:\n1. To add yourself if your Letterboxd username is 'mp4' (you don't need to be a mod): ``{prefix}follow mp4``
     2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``''')
+    @commands.has_guild_permissions(manage_messages=True)
     async def follow(self, ctx, lb_id, member: discord.Member = None):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
@@ -49,6 +50,7 @@ class Follow(commands.Cog):
 
 
     @commands.command(help='Unfollow user diary')
+    @commands.has_guild_permissions(manage_messages=True)
     async def unfollow(self, ctx, lb_id):
         conn = await self.db.acquire()
         async with conn.transaction():
