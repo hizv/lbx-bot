@@ -48,7 +48,6 @@ class Follow(commands.Cog):
             await self.db.release(conn)
 
 
-
     @commands.command(help='Unfollow user diary')
     async def unfollow(self, ctx, lb_id):
         conn = await self.db.acquire()

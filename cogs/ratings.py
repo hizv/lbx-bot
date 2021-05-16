@@ -49,7 +49,6 @@ class SeenSource(menus.ListPageSource):
             footer_text += f"{w_count} watched"
         embed.set_footer(text=footer_text)
 
-
         if 'poster_url' in self.details:
             embed.set_thumbnail(url=self.details['poster_url'])
 
@@ -188,7 +187,7 @@ class Ratings(commands.Cog):
             await ctx.send('Connection to Letterboxd failed')
             return
 
-        clist, details = {}, {'rating_count': 0, 'watch_count': 0}
+        clist, details = {}, {'cumulative': 0, 'rating_count': 0, 'watch_count': 0}
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
@@ -207,10 +206,11 @@ class Ratings(commands.Cog):
                     if db_info:
                         if 'guild_avg' in db_info and db_info['rating_count'] != 0:
                             body += f" **{0.5*db_info['guild_avg']:.2f}** ({db_info['rating_count']})"
+                            details['cumulative'] += db_info['guild_avg']*db_info['rating_count']
                             details['rating_count'] += db_info['rating_count']
                             if 'watch_count' in db_info:
                                 unrated = db_info['watch_count'] - db_info['rating_count']
-                                body += ' ' + '✓'*unrated
+                                body += ' ' + '✓'*(unrated if unrated < 6 else 6)
                                 details['watch_count'] += db_info['watch_count']
                         elif 'watch_count' in db_info:
                             body += ' ' + '✓'*db_info['watch_count']
@@ -222,8 +222,7 @@ class Ratings(commands.Cog):
         crew_list = [k for k, v in sorted(clist.items(), key=lambda item: item[1], reverse=True)]
         print(crew_list)
         details['link'] = 'https://boxd.it/' + crew['id']
-        details['guild_avg'] = sum(clist.values())/len(clist.values())
-
+        details['guild_avg'] = details['cumulative']/details['rating_count']
         title=f"{role_name} {crew['name']}"
         pages = menus.MenuPages(source=SeenSource(title, details, crew_list), clear_reactions_after=True)
         await pages.start(ctx)
