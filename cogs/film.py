@@ -150,7 +150,7 @@ class Film(commands.Cog):
                         return
                     else:
                         selector = Selector(text=await r.text())
-                        wsize = int(selector.css('span.watchlist-count')[0].get().split('>')[1].split('\xa0')[0])
+                        wsize = int(selector.css('span.watchlist-count')[0].get().split('>')[1].split('\xa0')[0].replace(',', ''))
             watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
             film_ids = [film['id'] for film in watchlist['items']]
             if not watchlist['items']:
@@ -173,7 +173,7 @@ class Film(commands.Cog):
                 'lid': lid
             }, {
                 '$set': w_details
-            }, upsert=True)
+            })
 
         await ctx.send(f'Done updating watchlist for {lb_id}')
 
