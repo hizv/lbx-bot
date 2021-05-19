@@ -160,8 +160,7 @@ class Film(commands.Cog):
             added = len(watchlist['items'])
             while added < wsize:
                 added += 100
-                print(film_ids)
-                watchlist_request['next'] = watchlist['next']
+                watchlist_request['cursor'] = watchlist['next']
                 watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
                 film_ids += [film['id'] for film in watchlist['items']]
 
@@ -187,8 +186,11 @@ class Film(commands.Cog):
             ctx.send('User not followed')
 
         if 'wlist' in user:
-            if end == 0:
-                end = user['wsize']
+            wsize = user['wsize']
+            if start >= wsize:
+                start = wsize-1
+            if end == 0 or end > wsize:
+                end = wsize
             random_film_id = user['wlist'][random.randrange(start, end)]
             await ctx.send(embed=await film.get_film_embed(film_id=random_film_id))
         else:
