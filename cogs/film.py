@@ -154,7 +154,7 @@ class Film(commands.Cog):
             watchlist = await api.api_call(f'member/{lid}/watchlist', params=watchlist_request)
             film_ids = [film['id'] for film in watchlist['items']]
             if not watchlist['items']:
-                await ctx.send(f'Private or empty watchlist. Or try using {prefix}wrand (number of items in your watchlist)')
+                await ctx.send(f'Private or empty watchlist.')
                 return
 
             added = len(watchlist['items'])
@@ -185,7 +185,7 @@ class Film(commands.Cog):
         if not user:
             ctx.send('User not followed')
 
-        if 'wlist' in user:
+        try:
             wsize = user['wsize']
             if start >= wsize:
                 start = wsize-1
@@ -193,7 +193,7 @@ class Film(commands.Cog):
                 end = wsize
             random_film_id = user['wlist'][random.randrange(start, end)]
             await ctx.send(embed=await film.get_film_embed(film_id=random_film_id))
-        else:
+        except KeyError:
             await ctx.send(f'Please run {prefix}wsync')
 
 
