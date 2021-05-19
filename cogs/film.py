@@ -177,22 +177,19 @@ class Film(commands.Cog):
 
         await ctx.send(f'Done updating watchlist for {lb_id}')
 
-    @commands.command(help='Get a random film from last 100 items watchlisted')
-    async def wrand(self, ctx, *, lb_id=''):
-        if not lb_id:
-            conn = await self.db.acquire()
-            query = f'''SELECT lb_id FROM g{ctx.guild.id}.users
-                        WHERE uid = {ctx.author.id}
-                    '''
-            lb_id = await conn.fetchval(query)
-            await self.db.release(conn)
-
+    @commands.command(help='Get a random film from watchlist')
+    async def wrand(self, ctx, start=0, end=0):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        user = await db.users.find_one({'lb_id': lb_id})
+        user = await db.users.find_one({'uid': ctx.author.id})
+        if not user:
+            ctx.send('User not followed')
+
         if 'wlist' in user:
-            random_film_id = user['wlist'][random.randrange(0, user['wsize'])]
+            if end == 0:
+                end = user['wsize']
+            random_film_id = user['wlist'][random.randrange(start, end)]
             await ctx.send(embed=await film.get_film_embed(film_id=random_film_id))
         else:
             await ctx.send(f'Please run {prefix}wsync')
