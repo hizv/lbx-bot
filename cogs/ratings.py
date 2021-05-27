@@ -131,7 +131,7 @@ class Ratings(commands.Cog):
             await ctx.send(f"No film found matching '{film_keywords}'")
 
     @commands.command(aliases=['topf'],
-                      help='''Get a list of the server's highest rated films. Takes the minimum number of ratings as argument.
+                      help=f'''Get a list of the server's highest rated films. Takes the minimum number of ratings as argument.
                       NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.''')
     async def top_films(self, ctx, threshold):
         threshold = int(threshold)
@@ -250,7 +250,7 @@ class Ratings(commands.Cog):
 
     @commands.command()
     async def noah(self, ctx):
-        await ctx.send('That is the **worst** opinion I have *EVER* heard.')
+        await ctx.send('That is the **worst** opinion I have *EVER*  heard.')
 
 def setup(bot):
     bot.add_cog(Ratings(bot))
