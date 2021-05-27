@@ -149,10 +149,10 @@ async def who_knows_list(db, film_keywords):
 
     return title, details, wk_list
 
-async def top_films_list(db, threshold):
+async def top_films_list(db, threshold, order):
     top_films = db.films.find(
         { 'rating_count': {'$gt': threshold-1}
-    }).sort('guild_avg', -1)
+    }).sort('guild_avg', order)
 
     topf_short = []
     counter = 0

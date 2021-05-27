@@ -141,7 +141,21 @@ class Ratings(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        pages = menus.MenuPages(source=MySource(await top_films_list(db, threshold)), clear_reactions_after=True)
+        pages = menus.MenuPages(source=MySource(await top_films_list(db, threshold, -1)), clear_reactions_after=True)
+        await pages.start(ctx)
+
+    @commands.command(aliases=['lowf'],
+                      help='''Get a list of the server's lowest rated films. Takes the minimum number of ratings as argument.
+                      NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.''')
+    async def bottom_films(self, ctx, threshold):
+        threshold = int(threshold)
+        if threshold < 1:
+            await ctx.send('At least 1 rating')
+            return
+        db_name = f'g{ctx.guild.id}'
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
+        db = client[db_name]
+        pages = menus.MenuPages(source=MySource(await top_films_list(db, threshold, 1)), clear_reactions_after=True)
         await pages.start(ctx)
 
     @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'],
@@ -232,6 +246,11 @@ class Ratings(commands.Cog):
     async def filmscrew_handler(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             await ctx.send(f'On cooldown, try again in {error.retry_after:.1f}s')
+
+
+    @commands.command()
+    async def noah(self, ctx):
+        await ctx.send('That is the **worst** opinion I have *EVER* heard.')
 
 def setup(bot):
     bot.add_cog(Ratings(bot))
