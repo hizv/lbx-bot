@@ -44,7 +44,7 @@ class Follow(commands.Cog):
             await self.bot.get_cog('Ratings').usync(ctx, member)
         except Exception as e:
             print(e)
-            await ctx.send('Error, maybe user already exists')
+            await ctx.send(f'Error, if following somebody besides you, try ``{prefix}follow {lb_id} @them``')
         finally:
             await self.db.release(conn)
 
