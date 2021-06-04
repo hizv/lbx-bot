@@ -1,10 +1,24 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, menus
 import motor.motor_asyncio as motor
 from utils.diary import get_lid
 from config import SETTINGS, conn_url
 
 prefix = SETTINGS['prefix']
+
+
+class MySource(menus.ListPageSource):
+    def __init__(self, data):
+        super().__init__(data, per_page=20)
+
+    async def format_page(self, menu, entries):
+        offset = menu.current_page * self.per_page
+        description = '\n'.join(f'{i+1}. {v}'
+                                for i, v in enumerate(entries, start=offset))
+        return discord.Embed(
+            title=f'Will sync the following users on {prefix}ssync:',
+            description=description
+        )
 
 
 def get_conn_url(db_name):
@@ -19,7 +33,6 @@ class Follow(commands.Cog):
     @commands.command(help=f'''Follow your diary. Takes your LB username as input. Requires moderator permissions.
     Examples:\n1. To add yourself if your Letterboxd username is 'mp4': ``{prefix}follow mp4``
     2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``''')
-    @commands.has_guild_permissions(manage_messages=True)
     async def follow(self, ctx, lb_id, member: discord.Member = None):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
@@ -31,7 +44,6 @@ class Follow(commands.Cog):
             conn = await self.db.acquire()
             async with conn.transaction():
                 lid = await get_lid(lb_id)
-                chan_id = await conn.fetchval(f'SELECT channel_id FROM public.guilds WHERE id={ctx.guild.id}')
                 await self.db.execute(f'''INSERT INTO {db_name}.users (uid, lb_id, lid)
                                      VALUES ({member.id}, $1, $2)''', lb_id, lid)
             user = {
@@ -85,7 +97,7 @@ class Follow(commands.Cog):
 
     @commands.command(help='List followed users', aliases=[f'{prefix}follow'])
     async def following(self, ctx):
-        follow_str = ''
+        follow_list = []
 
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
@@ -94,14 +106,12 @@ class Follow(commands.Cog):
             discord_user = self.bot.get_user(user['uid'])
             lb_id = user['lb_id']
             display_name = lb_id if not discord_user else discord_user.display_name
-            follow_str += f'[{display_name}](https://letterboxd.com/{lb_id}), '
+            follow_list.append(f'{display_name}: [{lb_id}](https://letterboxd.com/{lb_id})')
 
-        embed = None
-        embed = discord.Embed(
-            description=f'Will sync the following users on {prefix}ssync:\n{follow_str}'
-        )
-        await ctx.send(embed=embed)
 
+        pages = menus.MenuPages(source=MySource(follow_list),
+                                clear_reactions_after=True)
+        await pages.start(ctx)
 
     @setchannel.error
     async def setchannel_error(self, ctx, error):

@@ -175,8 +175,16 @@ class Film(commands.Cog):
 
         await ctx.send(f'Done updating watchlist for {lb_id}')
 
-    @commands.command(help='Get a random film from watchlist')
+    @commands.command()
     async def wrand(self, ctx, start=0, end=0):
+        '''Get a random film from watchlist.
+
+        Examples:
+        1. To use the entire watchlist, run only <wrand
+        2. To skip the most recently watchlisted 420 films, run ``<wrand 420``
+        3. To skip the most recently watchlisted 420 films and also skip the oldest 65 films, run ``<wrand 420 65``
+        4. To skip the oldest 343 films, run ``<wrand 0 343``
+        '''
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]

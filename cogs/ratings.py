@@ -140,7 +140,7 @@ class Ratings(commands.Cog):
         """Get a list of the server's highest rated films.
 
         Takes the minimum number of ratings as argument.
-        NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.
+        NOTE: You need to run ``<ssync`` if you are using this for the FIRST time.
         """
         threshold = int(threshold)
         if threshold < 1:
@@ -149,8 +149,8 @@ class Ratings(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        pages = menus.MenuPages(source=MySource
-                                (await top_films_list(db, threshold, -1)),
+        pages = menus.MenuPages(source=MySource(
+            await top_films_list(db, threshold, -1)),
                                 clear_reactions_after=True)
         await pages.start(ctx)
 
@@ -159,7 +159,7 @@ class Ratings(commands.Cog):
         """Get a list of the server's lowest rated films.
 
         Takes the minimum number of ratings as argument.
-        NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.
+        NOTE: You need to run ``<ssync`` if you are using this for the FIRST time.
         """
         threshold = int(threshold)
         if threshold < 1:
