@@ -8,8 +8,10 @@ from utils import api
 
 prefix = SETTINGS['prefix']
 
+
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
+
 
 class MySource(menus.ListPageSource):
     def __init__(self, data):
@@ -17,10 +19,12 @@ class MySource(menus.ListPageSource):
 
     async def format_page(self, menu, entries):
         offset = menu.current_page * self.per_page
-        description = '\n'.join(f'{i+1}. {v}' for i, v in enumerate(entries, start=offset))
+        description = '\n'.join(f'{i+1}. {v}'
+                                for i, v in enumerate(entries, start=offset))
         return discord.Embed(
             description=description
         )
+
 
 class SeenSource(menus.ListPageSource):
     def __init__(self, title, details, data):
@@ -30,7 +34,8 @@ class SeenSource(menus.ListPageSource):
 
     async def format_page(self, menu, entries):
         offset = menu.current_page * self.per_page
-        description = '\n'.join(f'{i+1}. {v}' for i, v in enumerate(entries, start=offset))
+        description = '\n'.join(f'{i+1}. {v}'
+                                for i, v in enumerate(entries, start=offset))
         embed = discord.Embed(
             title=self.title,
             description=description,
@@ -53,6 +58,7 @@ class SeenSource(menus.ListPageSource):
             embed.set_thumbnail(url=self.details['poster_url'])
 
         return embed
+
 
 class Ratings(commands.Cog):
     def __init__(self, bot):
@@ -98,7 +104,7 @@ class Ratings(commands.Cog):
             await ctx.send(f'On cooldown, try again in {error.retry_after:.1f}s. Try using usync if just one member')
 
     @commands.command(aliases=['us'], help='Update user ratings. Mention someone to update their ratings.')
-    @commands.cooldown(1,3600,commands.BucketType.user)
+    @commands.cooldown(1, 3600, commands.BucketType.user)
     async def usync(self, ctx, member: discord.Member = None):
         db_name = f'g{ctx.guild.id}'
         member = member or ctx.author
@@ -111,7 +117,6 @@ class Ratings(commands.Cog):
     async def usync_handler(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
             await ctx.send(f'On cooldown, try again in {error.retry_after:.1f}s')
-
 
     @commands.command(aliases=['wk', 'seen', prefix+'wk'],
                       help='Check *who knows* a film, and their ratings')
@@ -130,10 +135,13 @@ class Ratings(commands.Cog):
         else:
             await ctx.send(f"No film found matching '{film_keywords}'")
 
-    @commands.command(aliases=['topf'],
-                      help=f'''Get a list of the server's highest rated films. Takes the minimum number of ratings as argument.
-                      NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.''')
+    @commands.command(aliases=['topf'])
     async def top_films(self, ctx, threshold):
+        """Get a list of the server's highest rated films.
+
+        Takes the minimum number of ratings as argument.
+        NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.
+        """
         threshold = int(threshold)
         if threshold < 1:
             await ctx.send('At least 1 rating')
@@ -141,13 +149,18 @@ class Ratings(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        pages = menus.MenuPages(source=MySource(await top_films_list(db, threshold, -1)), clear_reactions_after=True)
+        pages = menus.MenuPages(source=MySource
+                                (await top_films_list(db, threshold, -1)),
+                                clear_reactions_after=True)
         await pages.start(ctx)
 
-    @commands.command(aliases=['lowf'],
-                      help=f'''Get a list of the server's lowest rated films. Takes the minimum number of ratings as argument.
-                      NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.''')
+    @commands.command(aliases=['lowf'])
     async def bottom_films(self, ctx, threshold):
+        """Get a list of the server's lowest rated films.
+
+        Takes the minimum number of ratings as argument.
+        NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.
+        """
         threshold = int(threshold)
         if threshold < 1:
             await ctx.send('At least 1 rating')
@@ -155,22 +168,27 @@ class Ratings(commands.Cog):
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
-        pages = menus.MenuPages(source=MySource(await top_films_list(db, threshold, 1)), clear_reactions_after=True)
+        pages = menus.MenuPages(source=MySource(
+            await top_films_list(db, threshold, 1)),
+                                clear_reactions_after=True)
         await pages.start(ctx)
 
-    @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'],
-                      help=f'''NOTE: filmscrew is just a placeholder for the aliases. DO NOT use filmscrew by itself. Use the aliases as follows.
-                      Get the server's ratings for a crew by appending
-                      a (Actor),
-                      c (Composer),
-                      d (Director),
-                      e (Editor),
-                      p (Producer), or
-                      w (Writer), to f (films).
-                      Can be used once every minute.
-                      Example: ``{prefix}fd lynch`` to get a list of films directed by David Lynch''')
-    @commands.cooldown(1,20,commands.BucketType.user)
+    @commands.command(aliases=['fa', 'fc', 'fd', 'fp', 'fe', 'fw'])
+    @commands.cooldown(1, 20, commands.BucketType.user)
     async def filmscrew(self, ctx, *, crew_keywords):
+        """Get the server's ratings for a crew by appending
+
+        a (Actor),
+        c (Composer),
+        d (Director),
+        e (Editor),
+        p (Producer), or
+        w (Writer), to f (films).
+        NOTE: filmscrew is just a placeholder for the aliases.
+        DO NOT use filmscrew by itself. Use the aliases as follows.
+        Can be used once every minute.
+    Example: ``{prefix}fd lynch`` to get a list of films directed by David Lynch
+        """
         role = ctx.invoked_with[-1].lower()
         search_request = {
             'perPage': 1,
@@ -197,12 +215,14 @@ class Ratings(commands.Cog):
             'perPage': 60,
             'type': TYPE_CONTRIB[role]
         }
-        res = await api.api_call(f"contributor/{crew['id']}/contributions", params=contrib_req)
+        res = await api.api_call(f"contributor/{crew['id']}/contributions",
+                                 params=contrib_req)
         if 'items' not in res:
             await ctx.send('Connection to Letterboxd failed')
             return
 
-        clist, details = {}, {'cumulative': 0, 'rating_count': 0, 'watch_count': 0}
+        clist, details = {}, {'cumulative': 0, 'rating_count': 0,
+                              'watch_count': 0}
         db_name = f'g{ctx.guild.id}'
         client = motor.AsyncIOMotorClient(get_conn_url(db_name))
         db = client[db_name]
@@ -234,12 +254,14 @@ class Ratings(commands.Cog):
                 else:
                     clist[body] = -1
 
-        crew_list = [k for k, v in sorted(clist.items(), key=lambda item: item[1], reverse=True)]
+        crew_list = [k for k, v in sorted(
+            clist.items(), key=lambda item: item[1], reverse=True)]
         print(crew_list)
         details['link'] = 'https://boxd.it/' + crew['id']
         details['guild_avg'] = details['cumulative']/details['rating_count']
         title=f"{role_name} {crew['name']}"
-        pages = menus.MenuPages(source=SeenSource(title, details, crew_list), clear_reactions_after=True)
+        pages = menus.MenuPages(source=SeenSource(title, details, crew_list),
+                                clear_reactions_after=True)
         await pages.start(ctx)
 
     @filmscrew.error

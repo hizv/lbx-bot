@@ -20,13 +20,13 @@ async def get_list_id(lid, keywords):
     params = {
         'member': lid,
         'memberRelationship': 'Owner',
-        'perPage': 50,
+        'perPage': 80,
         'where': 'Published',
         'sort': 'ListPopularity'
     }
 
     res = await api.api_call('lists', params)
-    L_list = { s['name']:s['id'] for s in res['items']}
+    L_list = {s['name']: s['id'] for s in res['items']}
     match = process.extractOne(keywords, L_list.keys())
     if match[1] > 70:
         return L_list[match[0]]
@@ -74,7 +74,6 @@ def get_link(res):
     return None
 
 
-
 class Film(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -83,7 +82,7 @@ class Film(commands.Cog):
         self.ia = IMDb()
 
     @commands.command(help=f'search a film\n{prefix}{prefix}f to also get the synopsis',
-                aliases=['f', prefix + 'f'])
+                      aliases=['f', prefix + 'f'])
     async def film(self, ctx, *, film_keywords):
         verbosity = ctx.invoked_with.count(prefix)
         db = None
@@ -103,7 +102,7 @@ class Film(commands.Cog):
 
 
     @commands.command(help=f'Get info about a crew member\nUse {prefix}c to get a longer bio',
-                aliases=['c', prefix + 'c'])
+                      aliases=['c', prefix + 'c'])
     async def crew(self, ctx, *, crew_keywords):
         verbosity = ctx.invoked_with.count(prefix)
 
@@ -167,7 +166,7 @@ class Film(commands.Cog):
             db_name = f'g{ctx.guild.id}'
             client = motor.AsyncIOMotorClient(get_conn_url(db_name))
             db = client[db_name]
-            w_details = { 'wlist': film_ids, 'wsize': wsize}
+            w_details = {'wlist': film_ids, 'wsize': wsize}
             await db.users.update_one({
                 'lid': lid
             }, {
@@ -196,8 +195,7 @@ class Film(commands.Cog):
         except KeyError:
             await ctx.send(f'Please run {prefix}wsync')
 
-
-    @commands.command(help='Example: ``{prefix}lrand frymanjayce tspdt`` for https://letterboxd.com/frymanjayce/list/tspdt-starting-list/')
+    @commands.command(help=f'Example: ``{prefix}lrand frymanjayce tspdt`` for https://letterboxd.com/frymanjayce/list/tspdt-starting-list/')
     async def lrand(self, ctx, lb_id, *, keywords):
         lid = await diary.get_lid(lb_id)
         list_id = await get_list_id(lid, keywords)

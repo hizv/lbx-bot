@@ -1,10 +1,11 @@
 import discord
-from discord.ext import commands, menus
+from discord.ext import commands
 import motor.motor_asyncio as motor
 from utils.diary import get_lid
 from config import SETTINGS, conn_url
 
 prefix = SETTINGS['prefix']
+
 
 def get_conn_url(db_name):
     return conn_url + db_name + '?retryWrites=true&w=majority'
@@ -15,8 +16,8 @@ class Follow(commands.Cog):
         self.bot = bot
         self.db = bot.db
 
-    @commands.command(help=f'''Follow your diary. Takes your LB username as input.
-    Examples:\n1. To add yourself if your Letterboxd username is 'mp4' (you don't need to be a mod): ``{prefix}follow mp4``
+    @commands.command(help=f'''Follow your diary. Takes your LB username as input. Requires moderator permissions.
+    Examples:\n1. To add yourself if your Letterboxd username is 'mp4': ``{prefix}follow mp4``
     2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``''')
     @commands.has_guild_permissions(manage_messages=True)
     async def follow(self, ctx, lb_id, member: discord.Member = None):
