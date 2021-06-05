@@ -106,7 +106,6 @@ async def get_search_result(film_keywords):
 async def who_knows_list(db, film_keywords):
     ratings = db.ratings
     films = db.films
-    users = db.users
 
     film_res = await get_search_result(film_keywords)
     if not film_res:
@@ -116,7 +115,6 @@ async def who_knows_list(db, film_keywords):
     movie_id = link.split('/')[-2]
 
     details = {'name': film_res['name'], 'link': link}
-    db_info = await films.find_one({'movie_id': movie_id})
 
     total, r_count, ur_count = 0, 0, 0
     wk_list = []

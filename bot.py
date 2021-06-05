@@ -1,13 +1,11 @@
 import asyncio
 from datetime import datetime
-import secrets
 from discord.ext import commands, tasks
 import asyncpg
 import discord
-import letterboxd
 import utils.api as api
 from config import SETTINGS, POSTGRES_INFO
-from utils.diary import get_diary_embed, get_lid
+from utils.diary import get_diary_embed
 
 intents = discord.Intents.default()
 intents.members = True
@@ -17,6 +15,7 @@ prefix = SETTINGS['prefix']
 initial_extensions = ['cogs.film',
                       'cogs.ratings',
                       'cogs.follow']
+
 
 async def run():
     db = await asyncpg.create_pool(**POSTGRES_INFO)
@@ -33,6 +32,7 @@ async def run():
 
     await bot.start(SETTINGS['token'])
 
+
 def extend(entries, items, limit, lid):
     count = 0
     for act in items:
@@ -44,13 +44,14 @@ def extend(entries, items, limit, lid):
 
     return entries
 
+
 class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.db = kwargs.pop('db')
         self.prev_time = datetime.utcnow()
-        #self.check_feed.start()
+        # self.check_feed.start()
 
     async def on_ready(self):
         print(f'Logged in {len(self.guilds)} servers as {self.user.name}')
@@ -70,7 +71,8 @@ CREATE TABLE IF NOT EXISTS {schema}.films (
             movie_id text COLLATE pg_catalog."default" NOT NULL,
             guild_avg real,
             rating_count smallint,
-            CONSTRAINT films_pkey PRIMARY KEY (movie_id)) TABLESPACE pg_default;
+            CONSTRAINT films_pkey PRIMARY KEY (movie_id))
+            TABLESPACE pg_default;
 ALTER TABLE {schema}.films OWNER to postgres;
 CREATE TABLE IF NOT EXISTS {schema}.ratings (
     u_lid text COLLATE pg_catalog."default" NOT NULL,
@@ -87,13 +89,15 @@ CREATE TABLE IF NOT EXISTS {schema}.users (
 ALTER TABLE {schema}.users OWNER to postgres;
 '''
             await self.db.execute(init_schema)
-            await self.db.execute('INSERT INTO public.guilds (id) VALUES ($1)', guild.id)
+            await self.db.execute(
+                'INSERT INTO public.guilds (id) VALUES ($1)', guild.id)
         await self.db.release(connection)
 
     async def on_guild_remove(self, guild):
         conn = await self.db.acquire()
         async with conn.transaction():
-            await self.db.execute('DELETE FROM public.guilds WHERE id=$1', guild.id)
+            await self.db.execute(
+                'DELETE FROM public.guilds WHERE id=$1', guild.id)
         await self.db.release(conn)
 
     async def on_command_error(self, ctx, error):
@@ -118,11 +122,13 @@ ALTER TABLE {schema}.users OWNER to postgres;
     async def check_feed(self):
         conn = await self.db.acquire()
         async with conn.transaction():
-            async for guild in conn.cursor('SELECT id, channel_id FROM public.guilds'):
+            async for guild in conn.cursor(
+                    'SELECT id, channel_id FROM public.guilds'):
                 channel = self.get_channel(guild[1])
                 if not channel:
                     continue
-                async for row in conn.cursor(f'SELECT uid, lb_id, lid FROM g{guild[0]}.users'):
+                async for row in conn.cursor(
+                        f'SELECT uid, lb_id, lid FROM g{guild[0]}.users'):
                     print(row)
                     user = self.get_user(row[0])
                     if not user:
@@ -144,7 +150,8 @@ ALTER TABLE {schema}.users OWNER to postgres;
                     entries = extend([], activity['items'], 4, row[2])
                     dids = []
                     for entry in entries:
-                        entry_time = datetime.strptime(entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
+                        entry_time = datetime.strptime(
+                            entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
                         if entry_time > self.prev_time:
                             dids.append(entry['diaryEntry']['id'])
                     if dids:
@@ -156,11 +163,12 @@ ALTER TABLE {schema}.users OWNER to postgres;
                         )
                         await channel.send(embed=d_embed)
         self.prev_time = datetime.utcnow()
-        await self.db.release(conn) 
+        await self.db.release(conn)
 
     @check_feed.before_loop
     async def before_feed(self):
         await self.wait_until_ready()
+
 
 class MyHelp(commands.MinimalHelpCommand):
     async def send_command_help(self, command):
@@ -168,7 +176,9 @@ class MyHelp(commands.MinimalHelpCommand):
         embed.add_field(name="Help", value=command.help)
         alias = command.aliases
         if alias:
-            embed.add_field(name="Aliases", value=prefix + f", {prefix}".join(alias), inline=False)
+            embed.add_field(name="Aliases",
+                            value=prefix + f", {prefix}".join(alias),
+                            inline=False)
 
         channel = self.get_destination()
         await channel.send(embed=embed)
