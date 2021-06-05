@@ -154,7 +154,13 @@ class Ratings(commands.Cog):
                                 clear_reactions_after=True)
         await pages.start(ctx)
 
+<<<<<<< HEAD
     @commands.command(aliases=['lowf'])
+=======
+    @commands.command(aliases=['lowf'],
+                      help=f'''Get a list of the server's lowest rated films. Takes the minimum number of ratings as argument.
+                      NOTE: You need to run ``{prefix}ssync`` if you are using this for the FIRST time.''')
+>>>>>>> e9d3aba1ac17c72812db0544e2407afeae29380a
     async def bottom_films(self, ctx, threshold):
         """Get a list of the server's lowest rated films.
 
