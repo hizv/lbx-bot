@@ -4,6 +4,7 @@ from fuzzywuzzy import process
 from .film import get_link
 from utils import api
 
+
 async def get_diary_embed(dids):
     description = ''
     for did in dids:
@@ -25,7 +26,8 @@ async def get_diary_embed(dids):
             if d_entry['review']['containsSpoilers']:
                 description += '\n```Contains spoilers```'
             else:
-                description += '\n```' + markdownify(d_entry['review']['text'][:1600]) + '```'
+                description += '\n```'
+                + markdownify(d_entry['review']['text'][:1600]) + '```'
         description += '\n'
     embed = discord.Embed(description=description)
     if 'poster' in film:
@@ -33,12 +35,14 @@ async def get_diary_embed(dids):
 
     return embed
 
+
 async def get_lid(lb_id):
     m_result = await api.api_call('search', params={
         'include': 'MemberSearchItem',
         'input': lb_id,
         'perPage': 20
     })
-    lid_list = { m['member']['username']:m['member']['id'] for m in m_result['items']}
+    lid_list = {m['member']['username']: m['member']['id']
+                for m in m_result['items']}
     match = process.extractOne(lb_id, lid_list.keys())
     return lid_list[match[0]]

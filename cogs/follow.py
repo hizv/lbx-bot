@@ -1,3 +1,4 @@
+import typing
 import discord
 from discord.ext import commands, menus
 import motor.motor_asyncio as motor
@@ -71,18 +72,21 @@ class Follow(commands.Cog):
 
     @commands.command()
     @commands.has_guild_permissions(manage_messages=True)
-    async def unfollow(self, ctx, arg):
+    async def unfollow(self, ctx, arg: typing.Union[discord.Member, str]):
         '''Unfollow user.
 
         '''
         db_name = f'g{ctx.guild.id}'
         lb_id = arg
 
+        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
+        db = client[db_name]
+
         conn = await self.db.acquire()
         async with conn.transaction():
             if isinstance(arg, discord.Member):
                 query = f'''SELECT lb_id FROM {db_name}.users
-                WHERE uid = {arg.id}
+                WHERE uid={arg.id}
                 '''
                 lb_id = await conn.fetchval(query)
             await self.db.execute(f'''DELETE FROM {db_name}.users
@@ -90,8 +94,6 @@ class Follow(commands.Cog):
                                 ''')
         await self.db.release(conn)
 
-        client = motor.AsyncIOMotorClient(get_conn_url(db_name))
-        db = client[db_name]
         async with ctx.typing():
             await db.users.delete_many({'lb_id': lb_id})
             user_ratings = db.ratings.find({'lb_id': lb_id})
