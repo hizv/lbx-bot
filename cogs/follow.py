@@ -35,7 +35,7 @@ class Follow(commands.Cog):
     async def follow(self, ctx, lb_id, member: discord.Member = None):
         """Follow your diary.
 
-        Takes your LB username as input. Requires moderator permissions.
+        Takes your LB username as input.
         Examples:
         1. To add yourself if your Letterboxd username is 'mp4': ``{prefix}follow mp4``
         2.To add someone besides you, you need to ping them too: ``{prefix}follow mp4 @chieko``
