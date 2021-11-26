@@ -65,7 +65,7 @@ class Fun(commands.Cog):
             newImage.paste(poster2Resize, (420, 95))
             newImage.paste(template, (0, 0), template)
             drawing1 = ImageDraw.Draw(newImage)
-            myFont = ImageFont.truetype("times-new-roman.ttf", 20)
+            myFont = ImageFont.truetype("times-new-roman.ttf", 27)
 
             title1 = f"{f1_details['name']}"
             if "releaseYear" in f1_details:
@@ -74,8 +74,8 @@ class Fun(commands.Cog):
             if "releaseYear" in f2_details:
                 title2 += " (" + str(f1_details["releaseYear"]) + ")"
 
-            drawing1.text((55, 425), title1, fill=(255, 255, 255), font=myFont)
-            drawing1.text((55, 525), title2, fill=(255, 255, 255), font=myFont)
+            drawing1.text((55, 425), title1, fill=(255, 255, 0), font=myFont)
+            drawing1.text((55, 525), title2, fill=(255, 255, 0), font=myFont)
             newImage.save("new-image.png", quality=95)
             await ctx.send(file=discord.File("new-image.png"))
 
