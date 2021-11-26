@@ -10,27 +10,28 @@ from utils.diary import get_diary_embed
 intents = discord.Intents.default()
 intents.members = True
 
-prefix = SETTINGS['prefix']
+prefix = SETTINGS["prefix"]
 
-initial_extensions = ['cogs.film',
-                      'cogs.ratings',
-                      'cogs.follow']
+initial_extensions = ["cogs.film", "cogs.ratings", "cogs.follow", "cogs.fun"]
 
 
 async def run():
     db = await asyncpg.create_pool(**POSTGRES_INFO)
 
-    bot = Bot(command_prefix=prefix,
-              help_command=MyHelp(),
-              intents=intents,
-              activity=discord.Activity(
-                  type=discord.ActivityType.listening, name=f'{prefix}help'),
-              db=db)
+    bot = Bot(
+        command_prefix=prefix,
+        help_command=MyHelp(),
+        intents=intents,
+        activity=discord.Activity(
+            type=discord.ActivityType.listening, name=f"{prefix}help"
+        ),
+        db=db,
+    )
 
     for extension in initial_extensions:
         bot.load_extension(extension)
 
-    await bot.start(SETTINGS['token'])
+    await bot.start(SETTINGS["token"])
 
 
 def extend(entries, items, limit, lid):
@@ -38,7 +39,7 @@ def extend(entries, items, limit, lid):
     for act in items:
         if count == limit:
             break
-        if act['type'] == 'DiaryEntryActivity' and act['member']['id'] == lid:
+        if act["type"] == "DiaryEntryActivity" and act["member"]["id"] == lid:
             entries.append(act)
             count += 1
 
@@ -49,12 +50,12 @@ class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.db = kwargs.pop('db')
+        self.db = kwargs.pop("db")
         self.prev_time = datetime.utcnow()
         # self.check_feed.start()
 
     async def on_ready(self):
-        print(f'Logged in {len(self.guilds)} servers as {self.user.name}')
+        print(f"Logged in {len(self.guilds)} servers as {self.user.name}")
 
     async def on_message(self, message):
         if message.content.startswith(prefix):
@@ -64,8 +65,8 @@ class Bot(commands.AutoShardedBot):
     async def on_guild_join(self, guild):
         connection = await self.db.acquire()
         async with connection.transaction():
-            schema = f'g{guild.id}'
-            init_schema = f'''
+            schema = f"g{guild.id}"
+            init_schema = f"""
 CREATE SCHEMA IF NOT EXISTS {schema};
 CREATE TABLE IF NOT EXISTS {schema}.films (
             movie_id text COLLATE pg_catalog."default" NOT NULL,
@@ -87,17 +88,17 @@ CREATE TABLE IF NOT EXISTS {schema}.users (
     CONSTRAINT users_pkey PRIMARY KEY (uid)
 ) TABLESPACE pg_default;
 ALTER TABLE {schema}.users OWNER to postgres;
-'''
+"""
             await self.db.execute(init_schema)
             await self.db.execute(
-                'INSERT INTO public.guilds (id) VALUES ($1)', guild.id)
+                "INSERT INTO public.guilds (id) VALUES ($1)", guild.id
+            )
         await self.db.release(connection)
 
     async def on_guild_remove(self, guild):
         conn = await self.db.acquire()
         async with conn.transaction():
-            await self.db.execute(
-                'DELETE FROM public.guilds WHERE id=$1', guild.id)
+            await self.db.execute("DELETE FROM public.guilds WHERE id=$1", guild.id)
         await self.db.release(conn)
 
     async def on_command_error(self, ctx, error):
@@ -106,9 +107,9 @@ ALTER TABLE {schema}.users OWNER to postgres;
             if cog._get_overridden_method(cog.cog_command_error) is not None:
                 return
 
-        ignored = (commands.CommandNotFound, )
+        ignored = (commands.CommandNotFound,)
 
-        error = getattr(error, 'original', error)
+        error = getattr(error, "original", error)
 
         if isinstance(error, ignored):
             return
@@ -122,13 +123,13 @@ ALTER TABLE {schema}.users OWNER to postgres;
     async def check_feed(self):
         conn = await self.db.acquire()
         async with conn.transaction():
-            async for guild in conn.cursor(
-                    'SELECT id, channel_id FROM public.guilds'):
+            async for guild in conn.cursor("SELECT id, channel_id FROM public.guilds"):
                 channel = self.get_channel(guild[1])
                 if not channel:
                     continue
                 async for row in conn.cursor(
-                        f'SELECT uid, lb_id, lid FROM g{guild[0]}.users'):
+                    f"SELECT uid, lb_id, lid FROM g{guild[0]}.users"
+                ):
                     print(row)
                     user = self.get_user(row[0])
                     if not user:
@@ -136,30 +137,31 @@ ALTER TABLE {schema}.users OWNER to postgres;
                         continue
 
                     ratings_request = {
-                        'perPage': 100,
-                        'include': 'DiaryEntryActivity',
-                        'where': 'OwnActivity',
+                        "perPage": 100,
+                        "include": "DiaryEntryActivity",
+                        "where": "OwnActivity",
                     }
                     activity = await api.api_call(
-                        path=f'member/{row[2]}/activity',
-                        params=ratings_request)
+                        path=f"member/{row[2]}/activity", params=ratings_request
+                    )
 
-                    if 'items' not in activity:
+                    if "items" not in activity:
                         continue
 
-                    entries = extend([], activity['items'], 4, row[2])
+                    entries = extend([], activity["items"], 4, row[2])
                     dids = []
                     for entry in entries:
                         entry_time = datetime.strptime(
-                            entry['whenCreated'], '%Y-%m-%dT%H:%M:%SZ')
+                            entry["whenCreated"], "%Y-%m-%dT%H:%M:%SZ"
+                        )
                         if entry_time > self.prev_time:
-                            dids.append(entry['diaryEntry']['id'])
+                            dids.append(entry["diaryEntry"]["id"])
                     if dids:
                         d_embed = await get_diary_embed(dids)
                         d_embed.set_author(
                             name=user.display_name,
-                            url=f'https://letterboxd.com/{row[1]}',
-                            icon_url=user.avatar_url
+                            url=f"https://letterboxd.com/{row[1]}",
+                            icon_url=user.avatar_url,
                         )
                         await channel.send(embed=d_embed)
         self.prev_time = datetime.utcnow()
@@ -176,9 +178,9 @@ class MyHelp(commands.MinimalHelpCommand):
         embed.add_field(name="Help", value=command.help)
         alias = command.aliases
         if alias:
-            embed.add_field(name="Aliases",
-                            value=prefix + f", {prefix}".join(alias),
-                            inline=False)
+            embed.add_field(
+                name="Aliases", value=prefix + f", {prefix}".join(alias), inline=False
+            )
 
         channel = self.get_destination()
         await channel.send(embed=embed)

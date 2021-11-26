@@ -65,7 +65,7 @@ class Fun(commands.Cog):
             newImage.paste(poster2Resize, (420, 95))
             newImage.paste(template, (0, 0), template)
             drawing1 = ImageDraw.Draw(newImage)
-            myFont = ImageFont.truetype("times-new-roman.ttf", 38)
+            myFont = ImageFont.truetype("times-new-roman.ttf", 20)
 
             drawing1.text(
                 (55, 425), "The Only Son (1936)", fill=(255, 255, 255), font=myFont
