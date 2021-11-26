@@ -67,12 +67,15 @@ class Fun(commands.Cog):
             drawing1 = ImageDraw.Draw(newImage)
             myFont = ImageFont.truetype("times-new-roman.ttf", 20)
 
-            drawing1.text(
-                (55, 425), "The Only Son (1936)", fill=(255, 255, 255), font=myFont
-            )
-            drawing1.text(
-                (55, 525), "Discreet Charm", fill=(255, 255, 255), font=myFont
-            )
+            title1 = f"{f1_details['name']}"
+            if "releaseYear" in f1_details:
+                title1 += " (" + str(f1_details["releaseYear"]) + ")"
+            title2 = f"{f2_details['name']}"
+            if "releaseYear" in f2_details:
+                title2 += " (" + str(f1_details["releaseYear"]) + ")"
+
+            drawing1.text((55, 425), title1, fill=(255, 255, 255), font=myFont)
+            drawing1.text((55, 525), title2, fill=(255, 255, 255), font=myFont)
             newImage.save("new-image.png", quality=95)
             await ctx.send(file=discord.File("new-image.png"))
 
