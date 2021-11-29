@@ -16,6 +16,11 @@ def get_conn_url(db_name: str) -> str:
     return conn_url + db_name + "?retryWrites=true&w=majority"
 
 
+def word_wrap(line: str, n: int) -> str:
+    """Return the word wrapped version of a string, with given line length."""
+    return [line[i : i + n] for i in range(0, len(line), n)].join("\n")
+
+
 class Fun(commands.Cog):
     """Fun commands."""
 
@@ -65,7 +70,7 @@ class Fun(commands.Cog):
             newImage.paste(poster2Resize, (420, 95))
             newImage.paste(template, (0, 0), template)
             drawing1 = ImageDraw.Draw(newImage)
-            myFont = ImageFont.truetype("times-new-roman.ttf", 27)
+            myFont = ImageFont.truetype("times-new-roman.ttf", 24)
 
             title1 = f"{f1_details['name']}"
             if "releaseYear" in f1_details:
@@ -74,8 +79,12 @@ class Fun(commands.Cog):
             if "releaseYear" in f2_details:
                 title2 += " (" + str(f1_details["releaseYear"]) + ")"
 
-            drawing1.text((55, 425), title1, fill=(255, 255, 0), font=myFont)
-            drawing1.text((55, 525), title2, fill=(255, 255, 0), font=myFont)
+            drawing1.text(
+                (40, 425), word_wrap(title1, 34), fill=(255, 255, 0), font=myFont
+            )
+            drawing1.text(
+                (40, 500), word_wrap(title2, 20), fill=(255, 255, 0), font=myFont
+            )
             newImage.save("new-image.png", quality=95)
             await ctx.send(file=discord.File("new-image.png"))
 
