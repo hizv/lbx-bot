@@ -1,4 +1,5 @@
 from io import BytesIO
+import re
 
 import aiohttp
 import discord
@@ -18,7 +19,12 @@ def get_conn_url(db_name: str) -> str:
 
 def word_wrap(line: str, n: int) -> str:
     """Return the word wrapped version of a string, with given line length."""
-    return [line[i : i + n] for i in range(0, len(line), n)].join("\n")
+    return [line[i : i + n] for i in range(0, len(line), n)].join("\n")  # noqa
+
+
+def remove_symbols(s: str) -> str:
+    """Remove symbols that the API doesn't accept."""
+    return re.sub(r"[^\w]", " ", s)
 
 
 class Fun(commands.Cog):
@@ -33,8 +39,8 @@ class Fun(commands.Cog):
         if not keywords:
             return None
         minion, bob = keywords.split("|")
-        film1 = await get_search_result(minion)
-        film2 = await get_search_result(bob)
+        film1 = await get_search_result(remove_symbols(minion))
+        film2 = await get_search_result(remove_symbols(bob))
         if not (film1 or film2):
             return None
 
@@ -72,10 +78,10 @@ class Fun(commands.Cog):
             drawing1 = ImageDraw.Draw(newImage)
             myFont = ImageFont.truetype("times-new-roman.ttf", 24)
 
-            title1 = f"{f1_details['name']}"
+            title1 = f"{f1_details['name']}".replace("the", "da")
             if "releaseYear" in f1_details:
                 title1 += " (" + str(f1_details["releaseYear"]) + ")"
-            title2 = f"{f2_details['name']}"
+            title2 = f"{f2_details['name']}".replace("the", "da")
             if "releaseYear" in f2_details:
                 title2 += " (" + str(f1_details["releaseYear"]) + ")"
 
